@@ -1,0 +1,79 @@
+{
+  "project_name": "GD32F405RG",
+  "primary_profile": "embedded-toolchain",
+  "tools": [
+    {
+      "id": "repo-scan",
+      "name": "仓库扫描",
+      "recommended": true,
+      "source": "skill-script",
+      "commands": [
+        {
+          "cwd": ".",
+          "command": "python scripts/project_scan.py <repo> --output .harness-scaffold/project_facts.json",
+          "source": "skill-script",
+          "confidence": "high",
+          "requires_user_confirmation": false
+        }
+      ],
+      "prerequisites": [],
+      "rollout_phase": "phase-0",
+      "purpose": "在提出高影响问题前先汇总仓库事实。"
+    },
+    {
+      "id": "build-gate",
+      "name": "构建 Gate",
+      "recommended": true,
+      "source": "user-confirmed",
+      "commands": [
+        {
+          "cwd": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG",
+          "command": "UV4.exe -j0 -db -path \"Project\" \"Project\\GD32F405RG.uvprojx\"",
+          "source": "用户确认（Keil MDK-ARM）",
+          "confidence": "high",
+          "requires_user_confirmation": false,
+          "notes": "需要确认 UV4.exe 是否在 PATH 中；如不在需使用完整路径"
+        }
+      ],
+      "prerequisites": [],
+      "rollout_phase": "phase-1",
+      "purpose": "Keil MDK-ARM 构建 gate，确保代码可编译。"
+    },
+    {
+      "id": "test-gate",
+      "name": "最小测试 Gate",
+      "recommended": true,
+      "source": "needs-confirmation",
+      "commands": [
+        {
+          "cwd": ".",
+          "command": "<确认最小测试或冒烟命令>",
+          "source": "项目评估",
+          "confidence": "placeholder",
+          "requires_user_confirmation": true
+        }
+      ],
+      "prerequisites": [],
+      "rollout_phase": "phase-1",
+      "purpose": "接受变更前定义最小可重复验证步骤。"
+    },
+    {
+      "id": "doc-freshness-check",
+      "name": "Harness 文档一致性检查",
+      "recommended": true,
+      "source": "needs-confirmation",
+      "commands": [
+        {
+          "cwd": ".",
+          "command": "<确认文档一致性检查或审核清单>",
+          "source": "Harness 策略",
+          "confidence": "placeholder",
+          "requires_user_confirmation": true
+        }
+      ],
+      "prerequisites": [],
+      "rollout_phase": "phase-2",
+      "purpose": "保持入口文档与深层文档一致。"
+    }
+  ]
+}

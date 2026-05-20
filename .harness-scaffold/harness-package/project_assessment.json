@@ -1,0 +1,72 @@
+{
+  "project_name": "GD32F405RG",
+  "repo_root": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG",
+  "topology": {
+    "primary_profile": "embedded-toolchain",
+    "secondary_profiles": [],
+    "domain_profiles": [
+      "embedded"
+    ],
+    "repo_shape": "single-root",
+    "maturity_stage": "existing",
+    "workflow_modes": [
+      "human-review"
+    ],
+    "safety_boundary": "standard"
+  },
+  "confidence": "medium",
+  "evidence": [
+    {
+      "claim": "embedded_signal",
+      "evidence": ".ld, cmsis"
+    }
+  ],
+  "risks": [
+    "No clear automated test signal was detected.",
+    "No CI configuration was detected.",
+    "No existing agent entrypoint or instruction file was detected.",
+    "No high-confidence build command was detected.",
+    "No high-confidence test command was detected.",
+    "Embedded or native work needs explicit hardware versus CI validation boundaries."
+  ],
+  "unknowns": [
+    "部分 gate 命令需要用户确认后才能升级为 required。",
+    "仓库文件中未发现清晰 CI 策略。",
+    "Agent 运行模型需要新的入口文档。"
+  ],
+  "selected_constraint_ids": [
+    "context-entrypoint",
+    "progressive-disclosure",
+    "architecture-boundaries",
+    "interface-contracts",
+    "file-size-complexity",
+    "test-gates",
+    "doc-freshness",
+    "agent-safety-boundaries",
+    "entropy-ratchet",
+    "acceptance-contract",
+    "driver-app-layering",
+    "board-specific-isolation",
+    "hardware-validation-path",
+    "toolchain-entrypoints",
+    "manual-verification-contract",
+    "module-cohesion",
+    "module-coupling",
+    "dependency-direction",
+    "public-api-surface",
+    "interface-versioning",
+    "test-pyramid",
+    "test-isolation",
+    "shared-design-concept",
+    "ubiquitous-language",
+    "test-first-loop",
+    "deep-module",
+    "strategic-vs-tactical"
+  ],
+  "selected_tool_ids": [
+    "repo-scan",
+    "build-gate",
+    "test-gate",
+    "doc-freshness-check"
+  ]
+}

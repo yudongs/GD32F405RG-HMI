@@ -1,0 +1,694 @@
+{
+  "project_name": "GD32F405RG",
+  "primary_profile": "embedded-toolchain",
+  "domain_profiles": [
+    "embedded"
+  ],
+  "project_stage": "existing",
+  "constraints": [
+    {
+      "id": "context-entrypoint",
+      "source_catalog_id": "context-entrypoint",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Maintain one short agent entrypoint for the repo.",
+      "enforcement": [
+        "AGENTS.md",
+        "doc review"
+      ],
+      "verification_hint": "AGENTS.md exists and points to deeper docs instead of duplicating them.",
+      "rationale": "未扫描到现有 agent 入口；Harness 需要生成一个清晰的入口草稿。",
+      "user_visible": true
+    },
+    {
+      "id": "progressive-disclosure",
+      "source_catalog_id": "progressive-disclosure",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Keep detailed guidance in docs/harness instead of one large instruction blob.",
+      "enforcement": [
+        "docs/harness",
+        "doc freshness"
+      ],
+      "verification_hint": "Detailed rules live below docs/harness and the entrypoint stays short.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "architecture-boundaries",
+      "source_catalog_id": "architecture-boundaries",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Define module, subsystem, and dependency boundaries explicitly.",
+      "enforcement": [
+        "architecture doc",
+        "review checklist"
+      ],
+      "verification_hint": "Architecture constraints name the repo-specific subsystem boundaries.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "interface-contracts",
+      "source_catalog_id": "interface-contracts",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Centralize shared interfaces, schemas, or boundary contracts.",
+      "enforcement": [
+        "shared contract doc",
+        "type or schema checks"
+      ],
+      "verification_hint": "Shared contracts have an owner and an expected validation path.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "file-size-complexity",
+      "source_catalog_id": "file-size-complexity",
+      "category": "computational-feedback",
+      "level": "recommended",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Prevent files and functions from growing beyond reviewable size.",
+      "enforcement": [
+        "lint threshold",
+        "review checklist"
+      ],
+      "verification_hint": "Adoption can start as review guidance and later become a lint gate.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "test-gates",
+      "source_catalog_id": "test-gates",
+      "category": "computational-feedback",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Define the minimum checks before work is accepted.",
+      "enforcement": [
+        "build gate",
+        "test gate",
+        "smoke checks"
+      ],
+      "verification_hint": "Required gates only contain high-confidence commands or explicitly confirmed commands.",
+      "rationale": "未扫描到可靠命令，因此 gate 需要保留为待确认。",
+      "user_visible": true
+    },
+    {
+      "id": "doc-freshness",
+      "source_catalog_id": "doc-freshness",
+      "category": "computational-feedback",
+      "level": "recommended",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Keep agent entrypoints and Harness docs synced with the repo.",
+      "enforcement": [
+        "freshness script",
+        "review checklist"
+      ],
+      "verification_hint": "Harness docs mention the current toolchain and known entrypoints.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "agent-safety-boundaries",
+      "source_catalog_id": "agent-safety-boundaries",
+      "category": "operating-model",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "State what agents may edit, run, or only propose.",
+      "enforcement": [
+        "operating model doc"
+      ],
+      "verification_hint": "The operating model defines write, execution, network, and deployment boundaries.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "entropy-ratchet",
+      "source_catalog_id": "entropy-ratchet",
+      "category": "governance",
+      "level": "recommended",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Prevent new work from increasing structural entropy.",
+      "enforcement": [
+        "allowlist",
+        "phased tightening"
+      ],
+      "verification_hint": "Legacy or mixed repos define which areas are ratcheted first.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "acceptance-contract",
+      "source_catalog_id": "acceptance-contract",
+      "category": "inferential-feedback",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Explain how proposed work is accepted, rejected, or escalated.",
+      "enforcement": [
+        "review checklist",
+        "reviewer loop"
+      ],
+      "verification_hint": "The Harness states the reviewer model and what evidence is required.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "driver-app-layering",
+      "source_catalog_id": "driver-app-layering",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "embedded-toolchain",
+        "embedded"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Separate drivers, BSP, and application logic.",
+      "enforcement": [
+        "directory rules",
+        "review checklist"
+      ],
+      "verification_hint": "Driver and application ownership boundaries are explicit.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "board-specific-isolation",
+      "source_catalog_id": "board-specific-isolation",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "embedded-toolchain",
+        "embedded"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Isolate board and MCU specifics from reusable logic.",
+      "enforcement": [
+        "build targets",
+        "include rules"
+      ],
+      "verification_hint": "Board-specific code has a named location and cannot leak into shared logic.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "hardware-validation-path",
+      "source_catalog_id": "hardware-validation-path",
+      "category": "computational-feedback",
+      "level": "required",
+      "applies_to": [
+        "embedded-toolchain",
+        "embedded"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Define what is validated in CI versus on hardware.",
+      "enforcement": [
+        "build matrix",
+        "bench checklist"
+      ],
+      "verification_hint": "Hardware-only validation is clearly separated from CI gates.",
+      "rationale": "嵌入式证据要求区分 CI 可验证内容和硬件实测置信度。",
+      "user_visible": true
+    },
+    {
+      "id": "toolchain-entrypoints",
+      "source_catalog_id": "toolchain-entrypoints",
+      "category": "operating-model",
+      "level": "required",
+      "applies_to": [
+        "embedded-toolchain",
+        "embedded"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Document build, flash, debug, and recovery entrypoints.",
+      "enforcement": [
+        "operating model doc"
+      ],
+      "verification_hint": "Unknown flash/debug commands remain placeholders until confirmed.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "manual-verification-contract",
+      "source_catalog_id": "manual-verification-contract",
+      "category": "inferential-feedback",
+      "level": "recommended",
+      "applies_to": [
+        "embedded-toolchain",
+        "embedded"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "State manual validation expectations when automation is limited.",
+      "enforcement": [
+        "review checklist",
+        "test notes"
+      ],
+      "verification_hint": "Manual checks include owner, environment, and pass/fail evidence.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "module-cohesion",
+      "source_catalog_id": "module-cohesion",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Each file and module owns one concern; sibling files share the same purpose.",
+      "enforcement": [
+        "architecture doc",
+        "review checklist",
+        "directory README"
+      ],
+      "verification_hint": "Architecture doc lists each module's single responsibility and rejects mixed concerns.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "module-coupling",
+      "source_catalog_id": "module-coupling",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Forbid back-references and circular imports between modules.",
+      "enforcement": [
+        "import lint",
+        "circular-dependency check",
+        "review checklist"
+      ],
+      "verification_hint": "A circular-dependency check command is named (or marked placeholder) and runs in CI when adopted.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "dependency-direction",
+      "source_catalog_id": "dependency-direction",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Declare layer order (e.g. UI -> service -> repo -> infra); lower layers must not import higher layers.",
+      "enforcement": [
+        "architecture doc",
+        "import lint"
+      ],
+      "verification_hint": "Architecture doc shows a layered dependency diagram and forbidden directions.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "public-api-surface",
+      "source_catalog_id": "public-api-surface",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Each module exposes a single public entrypoint (e.g. index.ts, __init__.py); internals are not imported across modules.",
+      "enforcement": [
+        "architecture doc",
+        "barrel files",
+        "import lint"
+      ],
+      "verification_hint": "The Harness names each module's public entrypoint and forbids deep imports across module boundaries.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "interface-versioning",
+      "source_catalog_id": "interface-versioning",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Shared interfaces and schemas have an owner, change process, and breaking-change protocol.",
+      "enforcement": [
+        "interface-contracts doc",
+        "review checklist"
+      ],
+      "verification_hint": "Each shared contract lists owner, location, and how breaking changes are introduced.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "test-pyramid",
+      "source_catalog_id": "test-pyramid",
+      "category": "computational-feedback",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Define explicit unit/integration/e2e layers with minimum scope and command per layer.",
+      "enforcement": [
+        "testing-and-gates doc",
+        "test layout"
+      ],
+      "verification_hint": "Testing doc lists each layer, what it covers, its command, and confidence.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "test-isolation",
+      "source_catalog_id": "test-isolation",
+      "category": "computational-feedback",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Tests must not depend on real network, real credentials, or production data; external boundaries are mocked or sandboxed.",
+      "enforcement": [
+        "test-environment doc",
+        "review checklist"
+      ],
+      "verification_hint": "Test environment doc names every external boundary and how it is mocked or sandboxed.",
+      "rationale": "项目评估显示该约束适用于当前仓库形态。",
+      "user_visible": true
+    },
+    {
+      "id": "shared-design-concept",
+      "source_catalog_id": "shared-design-concept",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Before material feature work, use a Grill protocol to align the invisible shared design concept (branches, deps, failure modes); output lands in PRD/task/issue.",
+      "enforcement": [
+        "grill-protocol doc",
+        "PR template",
+        "review checklist"
+      ],
+      "verification_hint": "grill-protocol.md documents trigger, owner, question list, output path, and done-definition; work is traceable to that artifact.",
+      "rationale": "AI 辅助开发需先沉淀共享设计概念，避免仅改规格再生成的 vibe loop。",
+      "user_visible": true
+    },
+    {
+      "id": "ubiquitous-language",
+      "source_catalog_id": "ubiquitous-language",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Domain terms live in docs/harness/glossary.md; requirements, code names, and discussions use the same vocabulary.",
+      "enforcement": [
+        "glossary doc",
+        "review checklist"
+      ],
+      "verification_hint": "Glossary lists term, definition, owner, and forbidden synonyms; changes flow glossary-first then code/docs.",
+      "rationale": "人与模型、业务与代码需共享同一套领域词汇表。",
+      "user_visible": true
+    },
+    {
+      "id": "test-first-loop",
+      "source_catalog_id": "test-first-loop",
+      "category": "computational-feedback",
+      "level": "recommended",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "For agreed target dirs: write tests first, make implementation pass, then refactor (TDD-style) to shorten the AI feedback loop.",
+      "enforcement": [
+        "testing-and-gates doc",
+        "review checklist"
+      ],
+      "verification_hint": "testing-and-gates.md lists test_first_targets; PRs touching those paths show test-before-implementation or escalation note.",
+      "rationale": "测试先行缩短反馈回路，约束模型不超越当前可验证范围。",
+      "user_visible": true
+    },
+    {
+      "id": "deep-module",
+      "source_catalog_id": "deep-module",
+      "category": "feedforward",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Prefer deep modules: simple public surface, complexity inside; avoid shallow maze of tiny files and wrappers with complex call graphs.",
+      "enforcement": [
+        "architecture doc",
+        "public-api-surface lint",
+        "review checklist"
+      ],
+      "verification_hint": "architecture-constraints.md states frozen public surfaces per module and forbids shallow-wrapper-only splits.",
+      "rationale": "对外保持简单曲面，复杂度收于模块内部，避免浅模块迷宫。",
+      "user_visible": true
+    },
+    {
+      "id": "strategic-vs-tactical",
+      "source_catalog_id": "strategic-vs-tactical",
+      "category": "operating-model",
+      "level": "required",
+      "applies_to": [
+        "all"
+      ],
+      "workflow_overlay": [
+        "human-review"
+      ],
+      "project_labels": [
+        "embedded-toolchain",
+        "embedded",
+        "human-review"
+      ],
+      "summary": "Humans own strategy: architecture, boundaries, ubiquitous language, test pyramid; AI acts tactically inside frozen interfaces and tests.",
+      "enforcement": [
+        "operating model doc",
+        "review checklist"
+      ],
+      "verification_hint": "operating-model.md lists strategic_human_gates vs tactical AI tasks; no new cross-module contracts without human sign-off.",
+      "rationale": "战略（架构/边界/语言/金字塔）须人签字；AI 只在冻结契约下战术实现。",
+      "user_visible": true
+    }
+  ]
+}

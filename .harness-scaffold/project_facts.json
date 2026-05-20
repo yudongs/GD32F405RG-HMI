@@ -1,0 +1,51 @@
+{
+  "repo_root": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG",
+  "project_name": "GD32F405RG",
+  "primary_profile": "embedded-toolchain",
+  "secondary_profiles": [],
+  "domain_profiles": [
+    "embedded"
+  ],
+  "repo_shape": "single-root",
+  "maturity_stage": "existing",
+  "project_stage": "existing",
+  "workflow_modes": [
+    "human-review"
+  ],
+  "safety_boundary": "standard",
+  "classification_confidence": "medium",
+  "classification_evidence": [
+    {
+      "claim": "embedded_signal",
+      "evidence": ".ld, cmsis"
+    }
+  ],
+  "languages": [
+    "c-header",
+    "c"
+  ],
+  "source_file_count": 70,
+  "build_systems": [],
+  "manifest_files": [],
+  "ci_signals": [],
+  "agent_files": [],
+  "docs": [],
+  "existing_tools": [],
+  "test_signals": [],
+  "frontend_signal": false,
+  "backend_signal": false,
+  "embedded_signals": [
+    ".ld",
+    "cmsis"
+  ],
+  "workspaces": [],
+  "detected_commands": [],
+  "risk_points": [
+    "No clear automated test signal was detected.",
+    "No CI configuration was detected.",
+    "No existing agent entrypoint or instruction file was detected.",
+    "No high-confidence build command was detected.",
+    "No high-confidence test command was detected.",
+    "Embedded or native work needs explicit hardware versus CI validation boundaries."
+  ]
+}

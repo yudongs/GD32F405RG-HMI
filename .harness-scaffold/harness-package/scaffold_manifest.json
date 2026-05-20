@@ -1,0 +1,73 @@
+{
+  "entry_document": "generated_file_drafts/HARNESS_INDEX.md",
+  "generated_files": [
+    {
+      "path": "generated_file_drafts/AGENTS.md",
+      "purpose": "AGENTS.md"
+    },
+    {
+      "path": "generated_file_drafts/CLAUDE.md",
+      "purpose": "CLAUDE.md"
+    },
+    {
+      "path": "generated_file_drafts/HARNESS_INDEX.md",
+      "purpose": "HARNESS_INDEX.md"
+    },
+    {
+      "path": "generated_file_drafts/USER_NEXT_STEPS.md",
+      "purpose": "USER_NEXT_STEPS.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/architecture-constraints.md",
+      "purpose": "architecture-constraints.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/tooling-plan.md",
+      "purpose": "tooling-plan.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/testing-and-gates.md",
+      "purpose": "testing-and-gates.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/test-environment.md",
+      "purpose": "test-environment.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/interface-contracts.md",
+      "purpose": "interface-contracts.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/glossary.md",
+      "purpose": "glossary.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/grill-protocol.md",
+      "purpose": "grill-protocol.md"
+    },
+    {
+      "path": "generated_file_drafts/docs/harness/operating-model.md",
+      "purpose": "operating-model.md"
+    },
+    {
+      "path": "harness_summary.md",
+      "purpose": "检测到的项目形态与 rollout 摘要"
+    },
+    {
+      "path": "project_assessment.json",
+      "purpose": "机器可读项目评估"
+    },
+    {
+      "path": "decision_log.md",
+      "purpose": "基于证据的决策日志"
+    },
+    {
+      "path": "constraints_matrix.json",
+      "purpose": "机器可读约束矩阵"
+    },
+    {
+      "path": "tooling_selection.json",
+      "purpose": "机器可读工具与命令置信度"
+    }
+  ]
+}

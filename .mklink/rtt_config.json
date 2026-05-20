@@ -1,0 +1,7 @@
+{
+  "integrated": false,
+  "rtt_addr": "0x20000000",
+  "search_size": 1024,
+  "channel": 0,
+  "autostart": false
+}

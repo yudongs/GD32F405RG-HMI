@@ -1,0 +1,32 @@
+# Build outputs
+Project/Objects/
+Project/Listings/
+Project/*.hex
+Project/*.bin
+Project/*.map
+
+# Keil temporary files
+Project/*.uvguix.*
+Project/*.bak
+Project/*.dep
+Project/*.iex
+Project/*.htm
+Project/*.lst
+Project/*.txt
+Project/*.plg
+
+# IDE files
+*.project
+*.settings
+*.launch
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*~

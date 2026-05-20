@@ -1,0 +1,274 @@
+{
+  "id": "session-20260519-172000",
+  "feature_name": "lcd-st7586-driver",
+  "mode": "full",
+  "state": "EXPORTED",
+  "current_phase": 6,
+  "structured_requirement": {
+    "id": "REQ-000",
+    "title": "GD32F405RG ST7586S LCD 驱动及绘制库",
+    "description": "将现有的 STM32 平台 ST7586S LCD 驱动（LM240160, 240×160 像素, SPI 通信）完整移植到 GD32F405RG 平台，复用项目已有的 GPIO/SPI 初始化接口，保留全部绘制、文字、数字显示、BMP 图片、RTC 显示及 UI 组件功能，适配外部依赖（RTC、SysParamDeal、delay），对比度使用固定默认值。",
+    "user_roles": ["嵌入式固件开发者", "LCD 显示功能调用方"],
+    "functional_requirements": [
+      {"id": "REQ-001", "description": "ST7586S 控制器初始化（含硬件复位、寄存器配置、对比度设置、清屏、背光开启）", "priority": "must"},
+      {"id": "REQ-002", "description": "底层 SPI 命令/数据写入（wr_cmd / wr_dat），适配 GD32 SPI0 接口", "priority": "must"},
+      {"id": "REQ-003", "description": "基础绘制：画点、画线（水平/垂直/斜线）、矩形框、矩形填充", "priority": "must"},
+      {"id": "REQ-004", "description": "ASCII 文字显示（3种字号：6×8 / 8×12 / 12×16）及反白显示", "priority": "must"},
+      {"id": "REQ-005", "description": "数字显示：2/3/4/9位无符号整数、有符号十进制（含小数点和单位）、十六进制、浮点数", "priority": "must"},
+      {"id": "REQ-006", "description": "中文字符显示（GB1516 / GB1212）及字库数据", "priority": "must"},
+      {"id": "REQ-007", "description": "BMP 图片显示（ShowBMP）及静态图片资源", "priority": "must"},
+      {"id": "REQ-008", "description": "RTC 时间日期显示（适配 GD32 RTC 结构体）", "priority": "should"},
+      {"id": "REQ-009", "description": "UI 组件：密码输入框、使能/禁用指示、坐标轴（功率曲线）、动态框", "priority": "should"},
+      {"id": "REQ-010", "description": "清屏：全屏清除、指定区域清除", "priority": "must"},
+      {"id": "REQ-011", "description": "亮度控制：背光开关、对比度调节接口（固定默认值初始化）", "priority": "must"},
+      {"id": "REQ-012", "description": "延迟函数适配（delay.h 替换为 GD32 定时器或指令延时）", "priority": "must"}
+    ],
+    "non_functional": {
+      "performance": "SPI 通信速率不低于当前配置（APB2/4 分频），屏幕刷新无明显卡顿",
+      "security": "不适用",
+      "compatibility": "GD32F405RG + GD32 标准外设库；ST7586S 控制器 LM240160 240×160 LCD"
+    },
+    "assumptions": [],
+    "out_of_scope": []
+  },
+  "tech_recommendation": {
+    "primary": "兼容适配层 + 直接移植",
+    "description": "新建 APP/lcd_port.h 作为平台适配层，集中映射引脚宏、SPI发送、延时、类型别名。lcd_st7586.c/h 主体代码从参考 LCD.c/h 移植，字库和 BMP 数据以静态 const 数组保留。",
+    "confidence": "high"
+  },
+  "behavior_rules": [],
+  "example_map": [],
+  "gherkin_scenarios": [],
+  "adr_decisions": [
+    {"id": "ADR-001", "title": "LCD 驱动文件放入 APP/ 目录"},
+    {"id": "ADR-002", "title": "平台适配使用 lcd_port.h 集中映射"},
+    {"id": "ADR-003", "title": "字库数据与代码分离"},
+    {"id": "ADR-004", "title": "SPI0 专用于 LCD，不共享总线"}
+  ],
+  "test_strategy": {
+    "overview": "嵌入式 LCD 驱动测试采用四级策略：PC 端纯逻辑单元测试（gcc/mingw）→ SPI 事务捕获验证（spy buffer）→ 编译期静态断言（数据完整性）→ 硬件端手动目视验收。",
+    "levels": {
+      "unit": "PC 端 gcc 编译运行，测试纯逻辑函数（ChangeTab查找、坐标计算、ASCII索引、数字分解）",
+      "integration": "片上 SPI spy 模式，捕获 wr_cmd/wr_dat 调用序列，与预期字节流比对",
+      "static": "编译期 _Static_assert 验证字库大小、ChangeTab 正确性、结构体偏移",
+      "manual": "实际 ST7586S 屏幕目视验证显示效果（初始化、文字、图形、BMP）"
+    }
+  },
+  "test_case_matrix": [
+    {
+      "id": "TC-001",
+      "requirement": "REQ-002",
+      "scenario": "写入命令字节 wr_cmd(0x29)",
+      "level": "integration",
+      "first_failing_expectation": "SPI spy buffer 为空，调用 wr_cmd 后 buffer 中应有 {0x29} 且 DC=0",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_spy.c ../APP/lcd_st7586.c -o test_spy && ./test_spy\"",
+      "mock_boundary": "spi_i2s_data_transmit() → spy_buffer_append()；gpio_bit_set/reset() → spy_pin_log()",
+      "pass_criteria": "SPI spy buffer 记录的命令字节 = 0x29，DC 状态 = 0 (命令模式)，CS 在发送前拉低、发送后拉高"
+    },
+    {
+      "id": "TC-002",
+      "requirement": "REQ-002",
+      "scenario": "写入数据字节 wr_dat(0xFF)",
+      "level": "integration",
+      "first_failing_expectation": "SPI spy buffer 为空，调用 wr_dat 后 buffer 中应有 {0xFF} 且 DC=1",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_spy.c ../APP/lcd_st7586.c -o test_spy && ./test_spy --mode=wr_dat\"",
+      "mock_boundary": "同上 SPI spy + GPIO spy",
+      "pass_criteria": "记录字节 = 0xFF，DC = 1 (数据模式)，CS 时序：低→发送→高"
+    },
+    {
+      "id": "TC-003",
+      "requirement": "REQ-002",
+      "scenario": "连续写入100字节无丢失",
+      "level": "integration",
+      "first_failing_expectation": "spy buffer 计数器为0，调用100次 wr_dat 后应为100",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY_STRESS -I../APP test_lcd_spy_stress.c ../APP/lcd_st7586.c -o test_stress && ./test_stress\"",
+      "mock_boundary": "SPI spy buffer（1024字节环形缓冲）",
+      "pass_criteria": "spy buffer 记录 100 字节，数据顺序正确无覆盖，每次 CS 正确翻转"
+    },
+    {
+      "id": "TC-004",
+      "requirement": "REQ-001",
+      "scenario": "ST7586S 初始化序列验证",
+      "level": "integration",
+      "first_failing_expectation": "初始化函数未实现，spy buffer 为空",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_init.c ../APP/lcd_st7586.c -o test_init && ./test_init\"",
+      "mock_boundary": "SPI spy + GPIO spy + delay_ms() mock(直接计数不等待)",
+      "pass_criteria": "spy buffer 中命令序列包含：0xD7→0xE0→0xE3→0xE1(OPT读取) → 0x11(退出节电) → 0xC0(对比度) → 0xC3(Bias) → 0xC4 → 0xD0 → 0xB5 → 0x38 → 0x3A → 0x36 → 0xB0 → 0xB1 → 0x20 → 0x37 → 0xF4 → 0x29(开显示)；RST 引脚：高→低(≥10ms)→高(≥500ms)；BL 最终为 ON"
+    },
+    {
+      "id": "TC-005",
+      "requirement": "REQ-002",
+      "scenario": "ChangeTab 数据格式转换表正确性",
+      "level": "unit",
+      "first_failing_expectation": "ChangeTab 数组未定义或值错误",
+      "command": "bash -c \"cd test && gcc -DTEST_UNIT -I../APP test_lcd_unit.c -o test_unit && ./test_unit --filter=ChangeTab\"",
+      "mock_boundary": "无（纯查找表测试）",
+      "pass_criteria": "ChangeTab[0]=0x00, ChangeTab[1]=0x03, ChangeTab[2]=0x1C, ChangeTab[3]=0x1F, ChangeTab[4]=0xE0, ChangeTab[5]=0xE3, ChangeTab[6]=0xFC, ChangeTab[7]=0xFF；对于输入0-7，输出是唯一确定的3bit→8bit灰度映射"
+    },
+    {
+      "id": "TC-006",
+      "requirement": "REQ-003",
+      "scenario": "像素坐标→列地址计算",
+      "level": "unit",
+      "first_failing_expectation": "坐标转换函数不存在或返回错误值",
+      "command": "bash -c \"cd test && gcc -DTEST_UNIT -I../APP test_lcd_unit.c -o test_unit && ./test_unit --filter=coord\"",
+      "mock_boundary": "无（纯数学计算）",
+      "pass_criteria": "X=0→col=0,rem=0; X=1→col=0,rem=1; X=2→col=0,rem=2; X=3→col=1,rem=0; X=120→col=40,rem=0; X=239→col=79,rem=2"
+    },
+    {
+      "id": "TC-007",
+      "requirement": "REQ-003",
+      "scenario": "画点函数像素掩码选择",
+      "level": "unit",
+      "first_failing_expectation": "Draw_Dot 未实现或掩码错误",
+      "command": "bash -c \"cd test && gcc -DTEST_UNIT -I../APP test_lcd_unit.c -o test_unit && ./test_unit --filter=dot_mask\"",
+      "mock_boundary": "wr_cmd/wr_dat → spy buffer",
+      "pass_criteria": "X%3==0 →像素掩码 0xE0; X%3==1 → 0x1C; X%3==2 → 0x03"
+    },
+    {
+      "id": "TC-008",
+      "requirement": "REQ-004",
+      "scenario": "ASCII字符字库索引计算",
+      "level": "unit",
+      "first_failing_expectation": "ASCII索引函数未实现",
+      "command": "bash -c \"cd test && gcc -DTEST_UNIT -I../APP test_lcd_unit.c -o test_unit && ./test_unit --filter=ascii_idx\"",
+      "mock_boundary": "无",
+      "pass_criteria": "字符' ' (0x20)→索引0; 'A' (0x41)→索引0x21*8=264; '~' (0x7E)→索引0x5E*8=752"
+    },
+    {
+      "id": "TC-009",
+      "requirement": "REQ-004",
+      "scenario": "ASCIITAB6_8 字库大小静态断言",
+      "level": "static",
+      "first_failing_expectation": "编译失败如果字库大小不等于期望值",
+      "command": "bash -c \"cd test && gcc -c -DTEST_STATIC -I../APP test_lcd_static.c -o /dev/null 2>&1\"",
+      "mock_boundary": "无",
+      "pass_criteria": "_Static_assert(sizeof(ASCIITAB6_8) == 95*8, \"6x8 font size mismatch\") 编译通过；_Static_assert(sizeof(u8Chinese1516) > 0, \"Chinese font absent\") 编译通过"
+    },
+    {
+      "id": "TC-010",
+      "requirement": "REQ-005",
+      "scenario": "数字格式化：整数分解为十进制位",
+      "level": "unit",
+      "first_failing_expectation": "数字分解函数未实现",
+      "command": "bash -c \"cd test && gcc -DTEST_UNIT -I../APP test_lcd_unit.c -o test_unit && ./test_unit --filter=num_decomp\"",
+      "mock_boundary": "无",
+      "pass_criteria": "输入12345→分解为{1,2,3,4,5}; 输入0→分解为{0}; 输入4294967295→分解为{4,2,9,4,9,6,7,2,9,5}"
+    },
+    {
+      "id": "TC-011",
+      "requirement": "REQ-010",
+      "scenario": "全屏清除 ClrLcdram 写入全零",
+      "level": "integration",
+      "first_failing_expectation": "ClrLcdram 未实现，spy buffer 为空",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_clear.c ../APP/lcd_st7586.c -o test_clear && ./test_clear\"",
+      "mock_boundary": "SPI spy buffer",
+      "pass_criteria": "spy 日志中列地址=0x0000~0x004F(79)，行地址=0x0000~0x009F(159)，数据段包含128×160=20480字节的全零写入"
+    },
+    {
+      "id": "TC-012",
+      "requirement": "REQ-007",
+      "scenario": "ShowBMP 地址范围和字节计数",
+      "level": "integration",
+      "first_failing_expectation": "ShowBMP 未实现",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_bmp.c ../APP/lcd_st7586.c -o test_bmp && ./test_bmp\"",
+      "mock_boundary": "SPI spy buffer",
+      "pass_criteria": "ShowBMP(0,0,240,69,testData): 列地址0~79(240/3)，行地址0~68，数据段长度=80×69=5520字节"
+    },
+    {
+      "id": "TC-013",
+      "requirement": "REQ-011",
+      "scenario": "背光 GPIO 控制",
+      "level": "integration",
+      "first_failing_expectation": "LCD_BL_ON/LCD_BL_OFF 宏或函数不存在",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_bl.c ../APP/lcd_st7586.c -o test_bl && ./test_bl\"",
+      "mock_boundary": "GPIO spy (gpio_bit_set/gpio_bit_reset → spy)",
+      "pass_criteria": "LCD_BL_ON() → gpio_spy记录PA3=HIGH; LCD_BL_OFF() → gpio_spy记录PA3=LOW"
+    },
+    {
+      "id": "TC-014",
+      "requirement": "REQ-006",
+      "scenario": "CCTAB1516 中文字库数据存在",
+      "level": "static",
+      "first_failing_expectation": "编译失败如果 u8Chinese1516 数组缺失",
+      "command": "bash -c \"cd test && gcc -c -DTEST_STATIC -I../APP test_lcd_static.c -o /dev/null 2>&1\"",
+      "mock_boundary": "无",
+      "pass_criteria": "编译通过：_Static_assert 验证 u8Chinese1516 和 u8Chinese1212 数组已声明且非空"
+    },
+    {
+      "id": "TC-015",
+      "requirement": "REQ-012",
+      "scenario": "delay_ms 延时函数存在且可调用",
+      "level": "integration",
+      "first_failing_expectation": "delay_ms 符号未定义，链接失败",
+      "command": "bash -c \"cd test && gcc -DTEST_LCD_SPY -I../APP test_lcd_delay.c ../APP/lcd_st7586.c -o test_delay && ./test_delay\"",
+      "mock_boundary": "delay_ms() mock为计数器递增",
+      "pass_criteria": "delay_ms(500) 被调用且 mock 计数=500; delay_ms(0) 被调用且 mock 计数=0"
+    },
+    {
+      "id": "TC-016",
+      "requirement": "REQ-001",
+      "scenario": "硬件复位时序（手动）",
+      "level": "manual",
+      "first_failing_expectation": "用逻辑分析仪捕获 RST 引脚，上电后无复位脉冲",
+      "command": "逻辑分析仪连接 PA4(CS) PA5(SCK) PA7(MOSI) PC4(DC) PC5(RST) PA3(BL)，触发 RST 下降沿",
+      "mock_boundary": "无（实际硬件）",
+      "pass_criteria": "RST: 高→低(≥10ms)→高(≥500ms) → 之后SCK上出现SPI时钟 → 首字节为0xD7(OPT读取命令)"
+    },
+    {
+      "id": "TC-017",
+      "requirement": "REQ-001",
+      "scenario": "屏幕初始化后目视验收（手动）",
+      "level": "manual",
+      "first_failing_expectation": "上电后屏幕无显示或花屏",
+      "command": "烧录固件，上电，目视检查",
+      "mock_boundary": "无（实际硬件）",
+      "pass_criteria": "上电后屏幕显示全黑，背光均匀点亮，无花屏/闪烁/条纹"
+    },
+    {
+      "id": "TC-018",
+      "requirement": "REQ-004",
+      "scenario": "ASCII文字显示目视验收（手动）",
+      "level": "manual",
+      "first_failing_expectation": "屏幕黑屏或文字不可辨识",
+      "command": "在 main.c 中添加 PrintASCII(0, 0, \"Hello GD32!\") 调用，烧录后目视检查",
+      "mock_boundary": "无（实际硬件）",
+      "pass_criteria": "\"Hello GD32!\" 清晰显示在屏幕左上角，字符间距均匀，无残缺/错位"
+    },
+    {
+      "id": "TC-019",
+      "requirement": "REQ-003",
+      "scenario": "图形绘制目视验收（手动）",
+      "level": "manual",
+      "first_failing_expectation": "调用图形函数后屏幕无变化",
+      "command": "依次调用 Draw_Dot/XLine/YLine/Box/FillBlack，烧录后目视检查",
+      "mock_boundary": "无（实际硬件）",
+      "pass_criteria": "屏幕可见：点、水平线、竖线、矩形框、填充矩形，位置和尺寸符合参数预期"
+    },
+    {
+      "id": "TC-020",
+      "requirement": "REQ-007",
+      "scenario": "BMP Logo 显示目视验收（手动）",
+      "level": "manual",
+      "first_failing_expectation": "Logo 不显示或严重变形",
+      "command": "调用 ShowBMP(0,0,240,69,SolectriaSolar)，烧录后目视检查",
+      "mock_boundary": "无（实际硬件）",
+      "pass_criteria": "Logo 图案完整、清晰，宽高比正确，色彩/灰度层次可辨"
+    }
+  ],
+  "tdd_constraints": [
+    "实现任何生产行为前，先编写对应的失败测试并确认其失败",
+    "不删除、削弱、跳过或重写已通过的测试仅为了让新代码通过",
+    "测试中不使用真实 SPI/GPIO 硬件寄存器，使用 spy/mock 层",
+    "SPI spy buffer 实现：在 lcd_port.h 中 #ifdef TEST_LCD_SPY 分支，将 spi_i2s_data_transmit 重定向到 spy_buffer_append",
+    "GPIO spy 实现：gpio_bit_set/reset 在 TEST_LCD_SPY 下重定向到 spy_pin_log",
+    "delay_ms mock: #ifdef TEST_LCD_SPY 下 delay_ms(n) 定义为 ((void)n) 或计数器递增",
+    "如果某项测试无法在当前工具链下编写首个失败测试，创建最小可执行验证脚本并标记限制",
+    "Keil MDK 编译环境不支持标准 C 测试框架，PC 端测试使用 mingw-w64 gcc + 自定义断言宏",
+    "手动测试项必须与至少一个自动化 spy buffer 测试项配对（如 TC-016 与 TC-004 配对验证初始化序列）",
+    "所有 PC 端测试放在 test/ 目录，通过 Makefile 或批处理脚本一键运行"
+  ],
+  "handoff_dir": null,
+  "created_at": "2026-05-19T17:20:00+08:00",
+  "updated_at": "2026-05-19T17:35:00+08:00"
+}

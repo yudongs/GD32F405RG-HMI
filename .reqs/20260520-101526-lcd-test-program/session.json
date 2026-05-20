@@ -1,0 +1,42 @@
+{
+  "id": "session-20260520-101500",
+  "feature_name": "lcd-test-program",
+  "mode": "quick",
+  "state": "EXPORTED",
+  "current_phase": 6,
+  "structured_requirement": {
+    "id": "REQ-000",
+    "title": "LCD 屏幕诊断测试程序",
+    "description": "在 GD32F405RG 上运行的 ST7586 LCD 屏幕全量诊断测试程序，用于验证屏幕各项功能是否正常",
+    "user_roles": ["调试工程师"],
+    "functional_requirements": [
+      {"id": "REQ-001", "description": "纯色填充测试 - 红/绿/蓝/白/黑全屏填充", "priority": "must"},
+      {"id": "REQ-002", "description": "像素点测试 - 网格点阵显示", "priority": "must"},
+      {"id": "REQ-003", "description": "线条测试 - 斜线绘制", "priority": "must"},
+      {"id": "REQ-004", "description": "文字显示测试 - ASCII 字符显示", "priority": "must"},
+      {"id": "REQ-005", "description": "UI 组件测试 - Box 系列函数", "priority": "must"},
+      {"id": "REQ-006", "description": "数值显示测试 - 数字/十六进制显示", "priority": "must"}
+    ],
+    "non_functional": {
+      "performance": "每项测试持续 1-2 秒后自动切换",
+      "security": "",
+      "compatibility": "ST7586 LCD 驱动 240x160 分辨率"
+    },
+    "assumptions": ["使用现有 lcd_st7586 驱动 API"],
+    "out_of_scope": ["按钮交互、测试报告输出、工厂校准"]
+  },
+  "tech_recommendation": null,
+  "behavior_rules": [
+    "上电后自动开始测试，无需人工干预",
+    "各项测试循环执行，依次展示",
+    "每项测试完成后自动切换到下一项"
+  ],
+  "gherkin_scenarios": [],
+  "adr_decisions": [],
+  "test_strategy": null,
+  "test_case_matrix": [],
+  "tdd_constraints": [],
+  "handoff_dir": ".reqs/20260520-101526-lcd-test-program",
+  "created_at": "2026-05-20T10:15:00+08:00",
+  "updated_at": "2026-05-20T10:15:26+08:00"
+}

@@ -1,0 +1,38 @@
+{
+  "uvprojx_path": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG\\Project\\GD32F405RG.uvprojx",
+  "target_name": "Target_1",
+  "device": "GD32F405RG",
+  "vendor": "GigaDevice",
+  "pack_id": "GigaDevice.GD32F4xx_DFP.3.0.3",
+  "compiler": "ac5",
+  "flm_name": "GD32F4xx_1MB",
+  "flm_path": "$$Device:GD32F405RG$Flash\\GD32F4xx_1MB.FLM",
+  "flash_base": "0x08000000",
+  "flash_size": 1048576,
+  "flash_ram_base": "0x20000000",
+  "page_size": 4096,
+  "flash_region_count": 1,
+  "ram_base": "0x20000000",
+  "ram_size": 131072,
+  "output_dir": ".\\Objects\\",
+  "output_name": "GD32F405RG",
+  "listing_dir": ".\\Listings\\",
+  "hex_path": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG\\Project\\Objects\\GD32F405RG.hex",
+  "map_path": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG\\Project\\Listings\\GD32F405RG.map",
+  "axf_path": "C:\\Users\\yds\\Desktop\\GD32F405RG\\GD32F405RG\\Project\\Objects\\GD32F405RG.axf",
+  "include_paths": [
+    "..\\CMSIS\\GD\\GD32F4xx\\Include",
+    "..\\GD32_StdPeriph_Driver\\Include",
+    "..\\CMSIS",
+    "..\\User",
+    "..\\APP"
+  ],
+  "defines": [
+    "GD32F405",
+    "USE_STDPERIPH_DRIVER",
+    "USE_USB_FS",
+    "USE_RTT"
+  ],
+  "ide_type": "Keil",
+  "flm_path_on_device": "FLM/GD32F4xx_1MB.FLM"
+}
