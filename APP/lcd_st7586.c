@@ -8,6 +8,114 @@
 #include <math.h>
 #include "SEGGER_RTT.h"
 
+/* ============================================
+ * Framebuffer: 240x160 pixels, 1bpp, MSB first
+ * ============================================ */
+#define FB_WIDTH      240
+#define FB_HEIGHT     160
+#define FB_ROW_BYTES  (FB_WIDTH / 8)  /* 30 bytes per row */
+
+static u8 framebuffer[FB_HEIGHT][FB_ROW_BYTES];  /* 4800 bytes total */
+
+#define FB_BYTE(x)  ((x) >> 3)           /* x / 8 */
+#define FB_BIT(x)   (7 - ((x) & 0x07))    /* MSB = leftmost pixel */
+
+static void fb_set_pixel(u8 x, u8 y)
+{
+    framebuffer[y][FB_BYTE(x)] |= (1 << FB_BIT(x));
+}
+
+static void fb_clr_pixel(u8 x, u8 y)
+{
+    framebuffer[y][FB_BYTE(x)] &= ~(1 << FB_BIT(x));
+}
+
+static u8 fb_get_pixel(u8 x, u8 y)
+{
+    return (framebuffer[y][FB_BYTE(x)] >> FB_BIT(x)) & 0x01;
+}
+
+/**
+ * @brief Clear framebuffer (fill with zeros)
+ */
+void FbClear(void)
+{
+    u16 i;
+    for (i = 0; i < sizeof(framebuffer); i++) {
+        ((u8*)framebuffer)[i] = 0x00;
+    }
+}
+
+/**
+ * @brief Flush entire framebuffer to LCD via SPI
+ * @note 3 pixels are packed into 1 byte using ChangeTab lookup
+ */
+void FlushToLCD(void)
+{
+    u8 y, x, idx;
+
+    wr_cmd(0x2A);  /* Column Address Setting */
+    wr_dat(0x00);
+    wr_dat(0x00);
+    wr_dat(0x00);
+    wr_dat(0x4F);  /* 79 = 240/3 - 1 */
+
+    wr_cmd(0x2B);  /* Row Address Setting */
+    wr_dat(0x00);
+    wr_dat(0x00);
+    wr_dat(0x00);
+    wr_dat(0x9F);  /* 159 */
+
+    wr_cmd(0x2C);  /* Write display data */
+
+    for (y = 0; y < FB_HEIGHT; y++) {
+        for (x = 0; x < FB_WIDTH; x += 3) {
+            idx = (fb_get_pixel(x, y)     << 2)
+                | (fb_get_pixel(x + 1, y) << 1)
+                | (fb_get_pixel(x + 2, y) << 0);
+            wr_dat(ChangeTab[idx]);
+        }
+    }
+}
+
+/**
+ * @brief Dump framebuffer as ASCII art via RTT (scaled: every 4th col, every 2nd row)
+ *        '#' = pixel set (white), '.' = pixel clear (black)
+ */
+void FbDumpVisual(void)
+{
+    u8 y, x, xi;
+    char line[FB_WIDTH / 4 + 4];
+    SEGGER_RTT_printf(0, "--- FB Visual (%dx%d, 4:1 horiz, 2:1 vert) ---\n",
+                      FB_WIDTH, FB_HEIGHT);
+    for (y = 0; y < FB_HEIGHT; y += 2) {
+        xi = 0;
+        for (x = 0; x < FB_WIDTH; x += 4) {
+            line[xi++] = fb_get_pixel(x, y) ? '#' : '.';
+        }
+        line[xi++] = '\n';
+        line[xi] = '\0';
+        SEGGER_RTT_WriteString(0, line);
+    }
+}
+
+/**
+ * @brief Dump raw hex bytes of framebuffer via RTT (one row = 30 bytes hex)
+ */
+void FbDumpHex(void)
+{
+    u8 y, x;
+    SEGGER_RTT_printf(0, "--- FB Hex Dump (%d rows x %d bytes) ---\n",
+                      FB_HEIGHT, FB_ROW_BYTES);
+    for (y = 0; y < FB_HEIGHT; y++) {
+        SEGGER_RTT_printf(0, "Y%03d: ", y);
+        for (x = 0; x < FB_ROW_BYTES; x++) {
+            SEGGER_RTT_printf(0, "%02X ", framebuffer[y][x]);
+        }
+        SEGGER_RTT_WriteString(0, "\n");
+    }
+}
+
 /* Data format conversion table: 3 pixels per byte */
 const u8 ChangeTab[] = {
     0x00, 0x03, 0x1C, 0x1F, 0xE0, 0xE3, 0xFC, 0xFF
@@ -478,27 +586,12 @@ void wr_dat(u8 dat)
 }
 
 /**
- * @brief Clear screen RAM (fill with 0x00)
+ * @brief Clear screen - clears framebuffer and flushes to LCD
  */
 void ClrLcdram(void)
 {
-    u8 i, j;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(0x00);
-    wr_dat(0x00);
-    wr_dat(0x4F);  /* X: st7586 total 384 points, but lm240160 displays 240 points */
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(0x00);
-    wr_dat(0x00);
-    wr_dat(0x9F);  /* 9FH = 160 */
-    wr_cmd(0x2C);
-    for (i = 0; i < 160; i++) {
-        for (j = 0; j < 128; j++) {
-            wr_dat(0x00);
-        }
-    }
+    FbClear();
+    FlushToLCD();
 }
 
 /**
@@ -576,8 +669,9 @@ void ST7586_initialize(void)
 
     wr_cmd(0x29);  /* Display On */
 
-    ClrLcdram();
-    LCD_BL_ON();  /* backlight on */
+    FbClear();        /* clear framebuffer */
+    FlushToLCD();     /* flush blank screen */
+    LCD_BL_ON();      /* backlight on */
 }
 
 /**
@@ -592,29 +686,17 @@ void LcdOnOff(u8 onoff)
 }
 
 /**
- * @brief Clear specified area
+ * @brief Clear specified area in framebuffer and flush to LCD
  */
 void ClrSpecifiedArea(u8 x1, u8 x2, u8 y1, u8 y2)
 {
-    u8 i, j;
-    x1 = x1 / 3;
-    x2 = x2 / 3;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(x1);
-    wr_dat(0x00);
-    wr_dat(x2);
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y1);
-    wr_dat(0x00);
-    wr_dat(y2);
-    wr_cmd(0x2C);
-    for (i = 0; i <= y2 - y1; i++) {
-        for (j = 0; j <= x2 - x1; j++) {
-            wr_dat(0x00);
+    u8 x, y;
+    for (y = y1; y <= y2; y++) {
+        for (x = x1; x <= x2; x++) {
+            fb_clr_pixel(x, y);
         }
     }
+    FlushToLCD();
 }
 
 /**
@@ -646,155 +728,64 @@ void LCD_Lighter(void)
  * ============================================ */
 
 /**
- * @brief Draw a dot at coordinates (x, y)
+ * @brief Draw a dot at coordinates (x, y) - writes to framebuffer
  */
 void Draw_Dot(u32 x, u32 y)
 {
-    u8 k, m;
-    m = x / 3;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);  /* start column high byte */
-    wr_dat(m);     /* start column low byte */
-    wr_dat(0x00);  /* end column high byte */
-    wr_dat(m);     /* end column low byte */
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_dat(0x00);
-    wr_dat(y);
-    m = x % 3;
-    switch (m) {
-        case 0:  k = 0xE0; break;  /* pixel mask */
-        case 1:  k = 0x1C; break;
-        case 2:  k = 0x03; break;
-    }
-    wr_cmd(0x2C);
-    wr_dat(k);  /* write data */
-    wr_cmd(0xB9);
+    fb_set_pixel((u8)x, (u8)y);
 }
 
 /**
- * @brief Draw vertical line
+ * @brief Draw vertical line - writes to framebuffer
  */
 void YLine(u8 x, u8 y1, u8 y2)
 {
-    u8 i, m, k;
-    m = x / 3;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(m);
-    wr_dat(0x00);
-    wr_dat(m);
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y1);
-    wr_dat(0x00);
-    wr_dat(y2);
-    m = x % 3;
-    switch (m) {
-        case 0:  k = 0xE0; break;
-        case 1:  k = 0x1C; break;
-        case 2:  k = 0x03; break;
-    }
-    wr_cmd(0x2C);
-    for (i = 0; i < (y2 - y1); i++) {
-        wr_dat(k);
+    u8 y;
+    for (y = y1; y <= y2; y++) {
+        fb_set_pixel(x, y);
     }
 }
 
 /**
- * @brief Clear horizontal line
+ * @brief Clear horizontal line - writes to framebuffer
  */
 void ClearXLine(u8 x1, u8 x2, u8 y)
 {
-    u8 j, m, n;
-    m = x1 / 3;
-    n = x2 / 3;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(m);
-    wr_dat(0x00);
-    wr_dat(n);
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_cmd(0x2C);
-    for (j = 0; j < (n - m) + 1; j++) {
-        wr_dat(0x00);
+    u8 x;
+    for (x = x1; x <= x2; x++) {
+        fb_clr_pixel(x, y);
     }
 }
 
 /**
- * @brief Draw horizontal line
+ * @brief Draw horizontal line - writes to framebuffer
  */
 void XLine(u8 x1, u8 x2, u8 y)
 {
-    u8 j, m, n;
-    m = x1 / 3;
-    n = x2 / 3;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(m);
-    wr_dat(0x00);
-    wr_dat(n);
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_cmd(0x2C);
-    for (j = 0; j < (n - m) + 1; j++) {
-        wr_dat(0xFF);
+    u8 x;
+    for (x = x1; x <= x2; x++) {
+        fb_set_pixel(x, y);
     }
 }
 
 /**
- * @brief Draw BMP image
+ * @brief Draw BMP image - writes to framebuffer
+ * @param x, y: top-left position
+ * @param width: image width in pixels
+ * @param high: image height in pixels
+ * @param pstr: 1bpp image data (MSB first per byte)
  */
 void ShowBMP(u8 x, u8 y, u8 width, u8 high, const u8 *pstr)
 {
-    u8 i, j, k, Ddata, temp;
-    wr_cmd(0x2A);  /* Column Address Setting */
-    wr_dat(0x00);
-    wr_dat(x);
-    wr_dat(0x00);
-    wr_dat((width / 3) + x - 1);
-    wr_cmd(0x2B);  /* Row Address Setting */
-    wr_dat(0x00);
-    wr_dat(y);
-    wr_dat(0x00);
-    wr_dat(y + high - 1);
-    wr_cmd(0x2C);
-    for (i = 0; i < high; i++) {
-        /* monochrome data: 3 bytes (24 pixels) converted to 8 bytes, 3 pixels per byte */
-        /* conversion method: lookup table, 3 bits per group */
-        for (j = 0; j < width; j = j + 24) {
-            Ddata = *pstr++;
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
-            }
-            Ddata = Ddata + ((*pstr) >> 2);
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
-            }
-            Ddata = Ddata + (((*pstr++) & 0x03) << 4);
-            Ddata = Ddata + (*pstr) >> 4;
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
-            }
-            Ddata = Ddata + (((*pstr++) & 0x0F) << 2);
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
+    u8 row, col;
+    u8 bytes_per_row = (width + 7) / 8;
+    for (row = 0; row < high; row++) {
+        for (col = 0; col < width; col++) {
+            u8 byte_val = pstr[row * bytes_per_row + (col / 8)];
+            if (byte_val & (0x80 >> (col % 8))) {
+                fb_set_pixel(x + col, y + row);
+            } else {
+                fb_clr_pixel(x + col, y + row);
             }
         }
     }
@@ -1174,72 +1165,52 @@ void BoxSetting(void)
  * ============================================ */
 
 /**
- * @brief Display 6x8 ASCII character string
+ * @brief Display 6x8 ASCII character string - writes to framebuffer
  */
 void PrintASCII(u8 x, u8 y, const u8 *asciicode)
 {
     u32 p;
-    u8 i, k, Ddata, temp, m;
-    m = x / 3;
+    u8 i, col;
     while (*asciicode > 0) {
-        wr_cmd(0x2A);    /* Set Column Address */
-        wr_dat(0x00);
-        wr_dat(m);
-        wr_dat(0x00);
-        wr_dat(m + 1);
-        wr_cmd(0x2B);
-        wr_dat(0x00);
-        wr_dat(y);
-        wr_dat(0x00);
-        wr_dat(y + 7);
-        wr_cmd(0x2C);    /* Write display data to DDRAM */
         p = ((*asciicode++) - 0x20) * 8;
         for (i = 0; i < 8; i++) {
-            Ddata = ASCIITAB6_8[p + i] << 2;
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
+            u8 row_data = ASCIITAB6_8[p + i] << 2;
+            for (col = 0; col < 6; col++) {
+                if (row_data & (0x80 >> col)) {
+                    fb_set_pixel(x + col, y + i);
+                } else {
+                    fb_clr_pixel(x + col, y + i);
+                }
             }
         }
-        m = m + 2;
+        x += 6;
     }
 }
 
 /**
- * @brief Display 6x8 ASCII with normal/inverse mode
+ * @brief Display 6x8 ASCII with normal/inverse mode - writes to framebuffer
  * @param a: 1=normal, 0=inverse
  */
 void InverseASCII68(u8 x, u8 y, u8 a, const u8 *asciicode)
 {
     u32 p;
-    u8 i, k, Ddata, temp, m;
-    m = x / 3;
+    u8 i, col;
     while (*asciicode > 0) {
-        wr_cmd(0x2A);
-        wr_dat(0x00);
-        wr_dat(m);
-        wr_dat(0x00);
-        wr_dat(m + 1);
-        wr_cmd(0x2B);
-        wr_dat(0x00);
-        wr_dat(y);
-        wr_dat(0x00);
-        wr_dat(y + 7);
-        wr_cmd(0x2C);
         p = ((*asciicode++) - 0x20) * 8;
         for (i = 0; i < 8; i++) {
-            Ddata = ASCIITAB6_8[p + i] << 2;
+            u8 row_data = ASCIITAB6_8[p + i] << 2;
             if (a == 0) {
-                Ddata = Ddata ^ 0xFF;
+                row_data ^= 0xFF;
             }
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
+            for (col = 0; col < 6; col++) {
+                if (row_data & (0x80 >> col)) {
+                    fb_set_pixel(x + col, y + i);
+                } else {
+                    fb_clr_pixel(x + col, y + i);
+                }
             }
         }
-        m = m + 2;
+        x += 6;
     }
 }
 
@@ -1256,69 +1227,48 @@ void DisplayEnDis(u8 x, u8 y, u8 a, const u8 *asciicode)
 }
 
 /**
- * @brief Display 8x12 ASCII character string
+ * @brief Display 8x12 ASCII character string - writes to framebuffer
  */
 void PrintASCII812(u8 x, u8 y, const u8 *asciicode)
 {
-    volatile u8 Ddata;
     u32 p;
-    u8 i, k, temp, m;
-    m = x / 3;
+    u8 i, col;
     while (*asciicode > 0) {
-        wr_cmd(0x2A);
-        wr_dat(0x00);
-        wr_dat(m);
-        wr_dat(0x00);
-        wr_dat(m + 2);
-        wr_cmd(0x2B);
-        wr_dat(0x00);
-        wr_dat(y);
-        wr_dat(0x00);
-        wr_dat(y + 11);
-        wr_cmd(0x2C);
         p = ((*asciicode++) - 0x20) * 12;
         for (i = 0; i < 12; i++) {
-            Ddata = ASCIITAB8_12[p + i];
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xE0;
-                wr_dat(ChangeTab[temp >> 5]);
-                Ddata = Ddata << 3;
+            u8 row_data = ASCIITAB8_12[p + i];
+            for (col = 0; col < 8; col++) {
+                if (row_data & (0x80 >> col)) {
+                    fb_set_pixel(x + col, y + i);
+                } else {
+                    fb_clr_pixel(x + col, y + i);
+                }
             }
         }
-        m = m + 3;
+        x += 9;  /* 8-pixel font + 1 spacing, matches original m+=3 (9 pixels) */
     }
 }
 
 /**
- * @brief Display 8x16 ASCII character string
+ * @brief Display 8x16 ASCII character string - writes to framebuffer
  */
 void PrintASCII1216(u8 x, u8 y, u8 *asciicode)
 {
-    u8 i, k, Ddata, temp, m;
     u32 p;
-    m = x / 3;
+    u8 i, col;
     while (*asciicode > 0) {
-        wr_cmd(0x2A);
-        wr_dat(0x00);
-        wr_dat(m);
-        wr_dat(0x00);
-        wr_dat(m + 2);
-        wr_cmd(0x2B);
-        wr_dat(0x00);
-        wr_dat(y);
-        wr_dat(0x00);
-        wr_dat(y + 15);
-        wr_cmd(0x2C);
         p = ((*asciicode++) - 0x20) * 16;
         for (i = 0; i < 16; i++) {
-            Ddata = ASCIITAB816[p + i];
-            for (k = 0; k < 2; k++) {
-                temp = Ddata & 0xC0;
-                wr_dat(ChangeTab[temp >> 6]);
-                Ddata = Ddata << 2;
+            u8 row_data = ASCIITAB816[p + i];
+            for (col = 0; col < 8; col++) {
+                if (row_data & (0x80 >> col)) {
+                    fb_set_pixel(x + col, y + i);
+                } else {
+                    fb_clr_pixel(x + col, y + i);
+                }
             }
         }
-        m = m + 3;
+        x += 9;  /* 8-pixel font + 1 spacing, matches original m+=3 (9 pixels) */
     }
 }
 
@@ -1504,7 +1454,7 @@ void DisplayDecNum(u8 x, u8 y, u16 num, u8 DecPoint, u8 SignFlag, u8 ReverseDisp
     /* calculate digits and decimal point */
     if (DecPoint == 0) {
         PointBit = 0;
-        AvailableByte = 0;
+        AvailableByte = 1;
         while (temp_num >= 10) {
             temp_num /= 10;
             AvailableByte++;
@@ -1546,10 +1496,8 @@ void DisplayDecNum(u8 x, u8 y, u16 num, u8 DecPoint, u8 SignFlag, u8 ReverseDisp
         for (j = 0; j < (AvailableByte - i - 1 - PointBit); j++) {
             divisor *= 10;
         }
-        if (AvailableByte - i - 1 == PointBit) {
-            switch ((num / divisor) % 10) {
-                case 0: InverseASCII68(x + (i + 2) * 6, y, ReverseDisp, "."); break;
-            }
+        if (DecPoint > 0 && AvailableByte - i - 1 == PointBit) {
+            InverseASCII68(x + (i + 2) * 6, y, ReverseDisp, ".");
             i++;
             divisor /= 10;
         }
@@ -1641,10 +1589,11 @@ void DisplayHexValue(u8 x, u8 y, u16 num, u8 dot)
     ReturnDigits++;
 
     /* clear display */
-    for (i = 0; i < ReturnDigits + 2; i++) {
+    for (i = 0; i < ReturnDigits + 3; i++) {
         InverseASCII68(x + i * 6, y, 1, " ");
     }
 
+    InverseASCII68(x, y, 1, "0");
     InverseASCII68(x + 6, y, 1, "x");
 
     /* display hex value */

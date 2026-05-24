@@ -42,6 +42,12 @@ void ClrSpecifiedArea(u8 x1, u8 x2, u8 y1, u8 y2);
 void LCD_Darker(void);
 void LCD_Lighter(void);
 
+/* === Framebuffer Functions === */
+void FbClear(void);
+void FlushToLCD(void);
+void FbDumpVisual(void);
+void FbDumpHex(void);
+
 /* === Graphics === */
 void Draw_Dot(u32 x, u32 y);
 void YLine(u8 x, u8 y1, u8 y2);

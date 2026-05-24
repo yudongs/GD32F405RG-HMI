@@ -3,11 +3,28 @@
 #include "lcd_st7586.h"
 #include "lcd_test.h"
 
-/* simple delay function using loop */
+/* delay functions using DWT cycle counter (no interrupts, won't corrupt SPI) */
+extern uint32_t SystemCoreClock;
+
+static uint8_t _dwt_ready = 0;
+
+static void delay_init(void)
+{
+    if (_dwt_ready) return;
+    if (!(CoreDebug->DEMCR & CoreDebug_DEMCR_TRCENA_Msk)) {
+        CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    }
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    _dwt_ready = 1;
+}
+
 void delay_ms(uint32_t ms)
 {
-    volatile uint32_t count = ms * 168;  /* approx for 168MHz clock */
-    while (count--) {
+    delay_init();
+    uint32_t start = DWT->CYCCNT;
+    uint32_t ticks = ms * (SystemCoreClock / 1000U);
+    while ((uint32_t)(DWT->CYCCNT - start) < ticks) {
         __NOP();
     }
 }
