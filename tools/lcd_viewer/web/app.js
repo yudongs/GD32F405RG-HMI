@@ -48,11 +48,30 @@
       setStatus("starting", "等待首帧…");
     };
 
+    // Single unified onmessage handler. Disambiguates "frame" vs "PNG response"
+    // purely by payload length, so we never need a `waitingForPng` flag and
+    // a framebuffer frame arriving in any race window is never misread as PNG.
+    //
+    //   Frame payload : exactly FB_SIZE (4800) bytes
+    //   PNG response  : 4B LE uint32 length (N) + N bytes of PNG  →  total 4 + N
     ws.onmessage = (ev) => {
       if (typeof ev.data === "string") {
         handleText(JSON.parse(ev.data));
+        return;
+      }
+      const bytes = new Uint8Array(ev.data);
+      if (bytes.length === FB_SIZE) {
+        handleBinary(bytes);
+      } else if (bytes.length > 4) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const pngLen = view.getUint32(0, true);
+        if (bytes.length === 4 + pngLen) {
+          handlePngResponse(bytes.subarray(4));
+        } else {
+          console.warn("unknown binary payload length:", bytes.length);
+        }
       } else {
-        handleBinary(new Uint8Array(ev.data));
+        console.warn("unexpected short binary message:", bytes.length);
       }
     };
 
@@ -97,6 +116,20 @@
       fpsFrames = 0;
       lastFpsTs = now;
     }
+  }
+
+  function handlePngResponse(pngBytes) {
+    const blob = new Blob([pngBytes], { type: "image/png" });
+    if (pendingSaveBlobUrl) URL.revokeObjectURL(pendingSaveBlobUrl);
+    pendingSaveBlobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = pendingSaveBlobUrl;
+    a.download = `frame_${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    btnSave.textContent = "💾 保存当前帧";
+    btnSave.disabled = false;
   }
 
   // ---------- Canvas rendering ----------
@@ -146,41 +179,6 @@
       btnSave.disabled = true;
     }
   });
-
-  // Listen for the PNG binary response (4B LE uint32 length + PNG bytes).
-  // The browser fires `onmessage` again with binary type, so we need to
-  // distinguish: we use a flag set by btnSave and reset it once we receive
-  // a binary frame.
-  let waitingForPng = false;
-  btnSave.addEventListener("click", () => { waitingForPng = true; });
-  // We need to override handleBinary temporarily. Easiest: hook the ws.
-  const origConnect = connect;
-  connect = function patchedConnect() {
-    origConnect();
-    // The connect function reassigns window._ws, so we add a one-shot
-    // listener on the new socket.
-    const oldOnmessage = window._ws.onmessage;
-    window._ws.onmessage = (ev) => {
-      oldOnmessage(ev);
-      if (waitingForPng && ev.data instanceof ArrayBuffer) {
-        waitingForPng = false;
-        const view = new DataView(ev.data);
-        const len = view.getUint32(0, true);
-        const png = new Uint8Array(ev.data, 4, len);
-        const blob = new Blob([png], { type: "image/png" });
-        if (pendingSaveBlobUrl) URL.revokeObjectURL(pendingSaveBlobUrl);
-        pendingSaveBlobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = pendingSaveBlobUrl;
-        a.download = `frame_${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        btnSave.textContent = "💾 保存当前帧";
-        btnSave.disabled = false;
-      }
-    };
-  };
 
   // ---------- Go ----------
   connect();
