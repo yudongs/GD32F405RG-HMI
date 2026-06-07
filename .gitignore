@@ -30,3 +30,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *~
+
+# Git worktrees (isolated dev workspaces)
+.worktrees/
