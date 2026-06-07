@@ -1,6 +1,6 @@
 {
   "integrated": false,
-  "rtt_addr": "0x20000008",
+  "rtt_addr": "",
   "search_size": 1024,
   "channel": 0,
   "autostart": false

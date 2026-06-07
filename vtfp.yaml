@@ -1,0 +1,54 @@
+project:
+  name: gd32f405rg-hmi
+  product_id: GD32F405RG-HMI-1.0
+  model_code: 529
+
+protocol:
+  version: "0.1.0"
+  features: []
+
+memory:
+  header_base: "0x200002cc"
+  data_buffer_size: 5120
+  alignment: 4
+
+safety:
+  arm_timeout_ms: 2000
+  safety_key: "0xAA55AA55"
+  auto_disarm: true
+
+rtos:
+  type: freertos
+  tick_ms: 20
+
+commands:
+  - id: 1
+    name: KEY_PRESS
+    description: "Inject a key event. param[7:0] = KEY_EVENT_*: 1=UP 2=DOWN 3=ENTER 4=ESC. Routes to menu_navigate()."
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: int
+      size_bytes: 4
+  - id: 2
+    name: SET_DISPLAY_MODE
+    description: "Switch LCD test mode. param[7:0] = 0..6 = AUTO/DOTS/LINES/TEXT/UI/NUMERIC/COLORFILL."
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: int
+      size_bytes: 4
+  - id: 3
+    name: DUMP_FRAMEBUFFER
+    description: "Return 4800 bytes of the 240x160 1bpp LCD framebuffer (raw, packed 3 px/byte via ChangeTab)."
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: empty
+  - id: 4
+    name: QUERY_STATE
+    description: "Return 16 bytes LE: cursor_index(u32) + last_key(u32) + disp_mode(u32) + uptime_ms(u32)."
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: empty

@@ -1,0 +1,103 @@
+<h2>Web 端 LCD Framebuffer 实时显示 — 4 种页面布局</h2>
+<p class="subtitle">请选择你觉得最合适的方案，浏览器里看到的即实际效果</p>
+
+<div class="cards">
+  <!-- A: 1:1 真实尺寸，最简 -->
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD Framebuffer</div>
+        <div class="mockup-body" style="display:flex;align-items:center;justify-content:center;min-height:220px;background:#1a1a2e">
+          <div style="background:#c0d8c0;border:2px solid #333;width:240px;height:160px;display:grid;grid-template-columns:repeat(30,1fr);grid-template-rows:repeat(20,1fr);image-rendering:pixelated">
+            <div style="grid-column:5/12;grid-row:4/7;background:#203020"></div>
+            <div style="grid-column:14/20;grid-row:4/7;background:#203020"></div>
+            <div style="grid-column:7/18;grid-row:10/14;background:#203020"></div>
+            <div style="grid-column:10/15;grid-row:16/18;background:#203020"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 1:1 真实尺寸</h3>
+      <p>240×160 原生大小，中心对齐，仅有标题。最小化、最纯粹。</p>
+    </div>
+  </div>
+
+  <!-- B: 2× 缩放 + 侧边统计 -->
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD Framebuffer</div>
+        <div class="mockup-body" style="display:flex;gap:12px;padding:12px;background:#1a1a2e">
+          <div style="background:#c0d8c0;border:2px solid #333;width:160px;height:107px;flex-shrink:0;background-image:linear-gradient(45deg,#b8d0b8 25%,transparent 25%),linear-gradient(-45deg,#b8d0b8 25%,transparent 25%);background-size:8px 8px"></div>
+          <div style="flex:1;color:#a0d0a0;font-size:11px;font-family:monospace;line-height:1.6">
+            <div>分辨率&nbsp;&nbsp;240×160</div>
+            <div>采样周期&nbsp;50 ms</div>
+            <div>实际 FPS&nbsp;<b>--</b></div>
+            <div>数据源&nbsp;&nbsp;COM4</div>
+            <div>累计帧&nbsp;&nbsp;<b>--</b></div>
+            <div>丢帧&nbsp;&nbsp;&nbsp;<b>0</b></div>
+            <div>状态&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#4a4">●</span> 已连接</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 2× 缩放 + 侧栏统计</h3>
+      <p>左侧 480×320 屏幕，右侧实时统计（FPS、周期、丢帧、端口）。</p>
+    </div>
+  </div>
+
+  <!-- C: 4× 缩放 + 底部缩略图 -->
+  <div class="card" data-choice="C" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD Framebuffer · 4×</div>
+        <div class="mockup-body" style="display:flex;flex-direction:column;gap:8px;padding:8px;background:#1a1a2e">
+          <div style="background:#c0d8c0;border:2px solid #333;align-self:center;width:200px;height:133px;background-image:linear-gradient(45deg,#b8d0b8 25%,transparent 25%),linear-gradient(-45deg,#b8d0b8 25%,transparent 25%);background-size:8px 8px"></div>
+          <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+            <div style="width:32px;height:21px;background:#c0d8c0;border:1px solid #555"></div>
+          </div>
+          <div style="color:#888;font-size:10px;text-align:center">最近 6 帧缩略图</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 4× 大图 + 帧历史</h3>
+      <p>顶部 960×640 大图，底部 6 张最近帧缩略图。适合分析每帧变化。</p>
+    </div>
+  </div>
+
+  <!-- D: 2× + 顶部统计 + 底部控制 -->
+  <div class="card" data-choice="D" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD Framebuffer · 20 fps · COM4 · 已连接 ●</div>
+        <div class="mockup-body" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px;background:#1a1a2e">
+          <div style="background:#c0d8c0;border:2px solid #333;width:160px;height:107px;background-image:linear-gradient(45deg,#b8d0b8 25%,transparent 25%),linear-gradient(-45deg,#b8d0b8 25%,transparent 25%);background-size:8px 8px"></div>
+          <div style="display:flex;gap:6px;align-items:center;font-size:10px;color:#a0d0a0;font-family:monospace">
+            <button class="mock-button" style="padding:2px 8px">▶ 开始</button>
+            <button class="mock-button" style="padding:2px 8px">⏸ 暂停</button>
+            <span>周期</span>
+            <input class="mock-input" style="width:50px;padding:2px" value="50ms">
+            <button class="mock-button" style="padding:2px 8px">💾 保存当前帧</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D · 2× + 顶栏状态 + 底部控件</h3>
+      <p>顶部状态栏一行信息，底部控制面板（开始/暂停/周期/保存）。</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:16px;background:#2a2a3a;border-radius:6px;color:#888;font-size:12px">
+  <b style="color:#a0d0a0">说明：</b>这只是布局骨架示意图，不是真实 framebuffer 渲染。实际显示会根据 4800 字节的 1bpp 数据实时绘制。
+  想看真实渲染效果，可以告诉我我先做一版能跑的实现。
+</div>

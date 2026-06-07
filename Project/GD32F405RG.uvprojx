@@ -10,7 +10,7 @@
       <TargetName>Target_1</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060750::V5.06 update 6 (build 750)::.\ARMCC</pCCUsed>
+      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARM_Compiler_5.06u7</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -336,10 +336,10 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls></MiscControls>
-              <Define>GD32F405,USE_STDPERIPH_DRIVER,USE_USB_FS,USE_RTT</Define>
+              <MiscControls>--preinclude=..\generated\vtfp_compat.h</MiscControls>
+              <Define>GD32F405,USE_STDPERIPH_DRIVER,USE_USB_FS,USE_RTT,USE_VTFP=1</Define>
               <Undefine></Undefine>
-              <IncludePath>..\CMSIS\GD\GD32F4xx\Include;..\GD32_StdPeriph_Driver\Include;..\CMSIS;..\User;..\APP</IncludePath>
+              <IncludePath>..\CMSIS\GD\GD32F4xx\Include;..\GD32_StdPeriph_Driver\Include;..\CMSIS;..\User;..\APP;..\FreeRTOS\include;..\FreeRTOS\Source\include;..\FreeRTOS\portable\RVDS\ARM_CM4F;..\VTFP\vtfp-protocol\c-types;..\VTFP\vtfp-runtime\include;..\VTFP\vtfp-runtime\src\ports;..\generated</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -370,7 +370,7 @@
             <TextAddressRange>0x08000000</TextAddressRange>
             <DataAddressRange>0x20000000</DataAddressRange>
             <pXoBase></pXoBase>
-            <ScatterFile></ScatterFile>
+            <ScatterFile>.\Objects\GD32F405RG_vtfp.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
             <Misc></Misc>
@@ -597,6 +597,111 @@
               <FileName>lcd_test.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\APP\lcd_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\key.c</FilePath>
+            </File>
+            <File>
+              <FileName>menu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\menu.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>FreeRTOS</GroupName>
+          <Files>
+            <File>
+              <FileName>croutine.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\croutine.c</FilePath>
+            </File>
+            <File>
+              <FileName>event_groups.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\event_groups.c</FilePath>
+            </File>
+            <File>
+              <FileName>list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\list.c</FilePath>
+            </File>
+            <File>
+              <FileName>queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\queue.c</FilePath>
+            </File>
+            <File>
+              <FileName>stream_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\stream_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>tasks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\tasks.c</FilePath>
+            </File>
+            <File>
+              <FileName>timers.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\timers.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>FreeRTOS_Portable</GroupName>
+          <Files>
+            <File>
+              <FileName>heap_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\FreeRTOS\portable\RVDS\ARM_CM4F\port.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>VTFP</GroupName>
+          <Files>
+            <File>
+              <FileName>vtfp_crc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-protocol\c-types\vtfp_crc.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_core.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-runtime\src\vtfp_core.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_checksum.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-runtime\src\vtfp_checksum.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_arm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-runtime\src\vtfp_arm.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_dispatch.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-runtime\src\vtfp_dispatch.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_port_freertos.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\VTFP\vtfp-runtime\src\ports\vtfp_port_freertos.c</FilePath>
+            </File>
+            <File>
+              <FileName>vtfp_user_dispatch.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\generated\vtfp_user_dispatch.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "vtfp-hmi": {
+      "command": "python",
+      "args": [
+        "D:/xwechat_files/wxid_r61ppcpj6ncp22_b17d/msg/file/2026-06/GD32F405RG-HMI-529/GD32F405RG-HMI-529/GD32F405RG-HMI/mcp_server.py"
+      ],
+      "env": {
+        "MKLINK_PORT": "COM11"
+      }
+    }
+  }
+}

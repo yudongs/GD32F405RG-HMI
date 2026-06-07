@@ -1,0 +1,45 @@
+project:
+  name: abstract-controller
+  product_id: AC-1.0
+  model_code: 0
+
+protocol:
+  version: "0.1.0"
+  features: []
+
+memory:
+  header_base: "0x20000000"
+  data_buffer_size: 1024
+  alignment: 4
+
+safety:
+  arm_timeout_ms: 2000
+  safety_key: "0xAA55AA55"
+  auto_disarm: true
+
+rtos:
+  type: freertos
+  tick_ms: 20
+
+commands:
+  - id: 1
+    name: QUERY_STATE
+    description: Read the 8-byte state word (counter + last button press)
+    direction: pc_to_mcu
+    requires_arm: false
+  - id: 2
+    name: SET_PARAM
+    description: Set an internal parameter (0..3) to a uint32 value
+    direction: pc_to_mcu
+    requires_arm: false
+    request_schema:
+      type: int
+      size_bytes: 4
+  - id: 3
+    name: TOGGLE_OUTPUT
+    description: Toggle a virtual output bit (bit 0..7)
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: int
+      size_bytes: 4

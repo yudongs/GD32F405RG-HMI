@@ -1,0 +1,37 @@
+project:
+  name: abstract-controller
+  product_id: VTFP-1.0
+  model_code: 0
+
+protocol:
+  version: "0.1.0"
+  features: []
+
+memory:
+  header_base: "0x20000000"
+  data_buffer_size: 1024
+  alignment: 4
+
+safety:
+  arm_timeout_ms: 2000
+  safety_key: "0xAA55AA55"
+  auto_disarm: true
+
+rtos:
+  type: rt-thread
+  tick_ms: 20
+
+commands:
+  - id: 1
+    name: QUERY_INFO
+    description: Stub for schema validation (real QUERY_INFO is standard cmd 0x10)
+    direction: pc_to_mcu
+    requires_arm: false
+  - id: 2
+    name: TOGGLE_OUTPUT
+    description: Toggle a single digital output bit
+    direction: pc_to_mcu
+    requires_arm: true
+    request_schema:
+      type: int
+      size_bytes: 4

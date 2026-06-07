@@ -3,6 +3,13 @@
 
 extern void delay_ms(uint32_t ms);
 
+/*******************************************************************************
+* Description    : LCD颜色填充测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 依次显示红、绿、蓝、白、黑五种颜色
+*******************************************************************************/
 static void LCD_Test_ColorFill(void)
 {
     FillBlack(0x03, 0, LCD_WIDTH - 1, 0, LCD_HEIGHT - 1);  /* red   */
@@ -27,6 +34,13 @@ static void LCD_Test_ColorFill(void)
     delay_ms(1000);
 }
 
+/*******************************************************************************
+* Description    : LCD点阵显示测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 显示网格点阵
+*******************************************************************************/
 static void LCD_Test_Dots(void)
 {
     ClrLcdram();
@@ -40,6 +54,13 @@ static void LCD_Test_Dots(void)
     delay_ms(5000);
 }
 
+/*******************************************************************************
+* Description    : LCD线条绘制测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 显示交叉线条和对角线
+*******************************************************************************/
 static void LCD_Test_Lines(void)
 {
     ClrLcdram();
@@ -51,6 +72,13 @@ static void LCD_Test_Lines(void)
     delay_ms(5000);
 }
 
+/*******************************************************************************
+* Description    : LCD文字显示测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 显示ASCII字符
+*******************************************************************************/
 static void LCD_Test_Text(void)
 {
     ClrLcdram();
@@ -62,6 +90,13 @@ static void LCD_Test_Text(void)
     delay_ms(1500);
 }
 
+/*******************************************************************************
+* Description    : LCD UI组件测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 显示各种UI框和动态效果
+*******************************************************************************/
 static void LCD_Test_UI(void)
 {
     ClrLcdram();
@@ -81,6 +116,13 @@ static void LCD_Test_UI(void)
     delay_ms(800);
 }
 
+/*******************************************************************************
+* Description    : LCD数字显示测试
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 显示十进制和十六进制数字
+*******************************************************************************/
 static void LCD_Test_Numeric(void)
 {
     ClrLcdram();
@@ -92,18 +134,97 @@ static void LCD_Test_Numeric(void)
     delay_ms(5000);
 }
 
+static display_mode_t g_display_mode = DISPLAY_MODE_AUTO;
+static uint8_t g_display_auto_index = 0;
+
+/*******************************************************************************
+* Description    : LCD测试初始化
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 初始化LCD显示屏
+*******************************************************************************/
 void LCD_Test_Init(void)
 {
     ST7586_initialize();
 }
 
+/*******************************************************************************
+* Description    : 设置显示模式
+* Input          : mode - 显示模式
+* Output         : none
+* Return         : none
+*******************************************************************************/
+void LCD_SetDisplayMode(display_mode_t mode)
+{
+    g_display_mode = mode;
+    g_display_auto_index = 0;
+}
+
+/*******************************************************************************
+* Description    : 获取当前显示模式
+* Input          : none
+* Output         : none
+* Return         : 当前显示模式
+*******************************************************************************/
+display_mode_t LCD_GetDisplayMode(void)
+{
+    return g_display_mode;
+}
+
+/*******************************************************************************
+* Description    : 执行当前模式的显示
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 在任务中循环调用
+*******************************************************************************/
+void LCD_RefreshDisplay(void)
+{
+    switch (g_display_mode) {
+        case DISPLAY_MODE_DOTS:
+            LCD_Test_Dots();
+            break;
+        case DISPLAY_MODE_LINES:
+            LCD_Test_Lines();
+            break;
+        case DISPLAY_MODE_TEXT:
+            LCD_Test_Text();
+            break;
+        case DISPLAY_MODE_UI:
+            LCD_Test_UI();
+            break;
+        case DISPLAY_MODE_NUMERIC:
+            LCD_Test_Numeric();
+            break;
+        case DISPLAY_MODE_COLORFILL:
+            LCD_Test_ColorFill();
+            break;
+        case DISPLAY_MODE_AUTO:
+        default:
+            /* 自动循环模式 */
+            switch (g_display_auto_index) {
+                case 0: LCD_Test_Dots();      break;
+                case 1: LCD_Test_Lines();     break;
+                case 2: LCD_Test_Text();      break;
+                case 3: LCD_Test_UI();        break;
+                case 4: LCD_Test_Numeric();   break;
+                case 5: LCD_Test_ColorFill(); break;
+                default: g_display_auto_index = 0; break;
+            }
+            g_display_auto_index = (g_display_auto_index + 1) % 6;
+            break;
+    }
+}
+
+/*******************************************************************************
+* Description    : LCD测试循环（兼容旧接口）
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 循环执行LCD各项测试
+*******************************************************************************/
 void LCD_Test_Loop(void)
 {
-    while (1) {
-        LCD_Test_Dots();
-        LCD_Test_Lines();
-        LCD_Test_Text();
-        LCD_Test_UI();
-        LCD_Test_Numeric();
-    }
+    LCD_RefreshDisplay();
 }

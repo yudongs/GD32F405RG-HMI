@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vtfp_proto"
+version = "0.1.0"
+description = "VTFP v1 protocol primitives (constants, header pack/unpack, CRC-32)"
+# NOTE: readme is intentionally omitted for M1-T8. The ../../README.md path
+# from the task spec points outside the package root and is rejected by
+# modern setuptools. We will revisit this when we add long_description
+# rendering in a later task.
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "GEC6100D Project" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Embedded",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,19 +1,18 @@
 {
   "schema_version": "1.0",
-  "status": "warning_only",
-  "exit_code": 1,
+  "status": "success",
+  "exit_code": 0,
   "project": "Project/GD32F405RG.uvprojx",
   "uv4_path": "C:/Keil_v5/UV4/UV4.exe",
   "target": "Target_1",
-  "build_mode": "rebuild",
-  "timestamp": "2026-05-24T16:10:00+08:00",
+  "build_mode": "build",
+  "timestamp": "2026-06-07T12:26:24+0800",
   "duration_seconds": 5,
-  "command": "UV4.exe -sg -j0 -r Project/GD32F405RG.uvprojx -o .keil5-builder/build_log.txt",
-  "log_path": ".keil5-builder/logs/20260524T161000+0800.log",
+  "command": "C:/Keil_v5/UV4/UV4.exe -sg -j0 -b Project/GD32F405RG.uvprojx -o .keil5-builder/logs/build_20260607T122624+0800.log",
+  "log_path": "Project/Objects/GD32F405RG.build_log.htm",
   "errors": 0,
-  "warnings": 1,
+  "warnings": 0,
   "error_messages": [],
-  "warning_messages": [
-    "lcd_test.c(6): warning: #177-D: function \"LCD_Test_ColorFill\" was declared but never referenced"
-  ]
+  "warning_messages": [],
+  "notes": "Incremental build; Keil determined no source files required recompilation (axf/hex mtime 12:12 unchanged). Authoritative log is Keil's auto-generated Project/Objects/GD32F405RG.build_log.htm."
 }

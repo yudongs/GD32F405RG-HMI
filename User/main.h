@@ -1,3 +1,10 @@
+/*******************************************************************************
+* Description    : 主头文件
+* Input          : none
+* Output         : none
+* Return         : none
+* Application note: 定义LCD控制引脚及宏，包含所有外设驱动头文件
+*******************************************************************************/
 #ifndef __MAIN_H
 #define __MAIN_H
 
@@ -35,5 +42,16 @@
 void lcd_gpio_init(void);
 void lcd_spi_init(void);
 void delay_ms(uint32_t ms);
+
+/* VTFP 虚拟测试夹具 — 设为 1 启用,0 关闭(默认 0,生产固件不带)
+ * 启用时:
+ *   - main.c 创建一个 vTaskVTFP 任务
+ *   - Project/Objects/GD32F405RG_vtfp.sct 把 .vtfp section 放 0x20000000
+ *   - 链接器: 5KB SRAM 给 VTFP header+data,FreeRTOS heap 减 2KB
+ *   - PC 端: 通过 MCP server 远程按键/读屏/切模式
+ */
+#ifndef USE_VTFP
+#define USE_VTFP   0   /* 默认关闭,开发者手动打开 */
+#endif
 
 #endif

@@ -1,5 +1,5 @@
 {
-  "uvprojx_path": "D:\\桌面\\GD32\\GD32F405RG-HMI\\Project\\GD32F405RG.uvprojx",
+  "uvprojx_path": "D:\\xwechat_files\\wxid_r61ppcpj6ncp22_b17d\\msg\\file\\2026-06\\GD32F405RG-HMI-529\\GD32F405RG-HMI-529\\GD32F405RG-HMI\\Project\\GD32F405RG.uvprojx",
   "target_name": "Target_1",
   "device": "GD32F405RG",
   "vendor": "GigaDevice",
@@ -17,21 +17,29 @@
   "output_dir": ".\\Objects\\",
   "output_name": "GD32F405RG",
   "listing_dir": ".\\Listings\\",
-  "hex_path": "D:\\桌面\\GD32\\GD32F405RG-HMI\\Project\\Objects\\GD32F405RG.hex",
-  "map_path": "D:\\桌面\\GD32\\GD32F405RG-HMI\\Project\\Listings\\GD32F405RG.map",
-  "axf_path": "D:\\桌面\\GD32\\GD32F405RG-HMI\\Project\\Objects\\GD32F405RG.axf",
+  "hex_path": "D:\\xwechat_files\\wxid_r61ppcpj6ncp22_b17d\\msg\\file\\2026-06\\GD32F405RG-HMI-529\\GD32F405RG-HMI-529\\GD32F405RG-HMI\\Project\\Objects\\GD32F405RG.hex",
+  "map_path": "D:\\xwechat_files\\wxid_r61ppcpj6ncp22_b17d\\msg\\file\\2026-06\\GD32F405RG-HMI-529\\GD32F405RG-HMI-529\\GD32F405RG-HMI\\Project\\Listings\\GD32F405RG.map",
+  "axf_path": "D:\\xwechat_files\\wxid_r61ppcpj6ncp22_b17d\\msg\\file\\2026-06\\GD32F405RG-HMI-529\\GD32F405RG-HMI-529\\GD32F405RG-HMI\\Project\\Objects\\GD32F405RG.axf",
   "include_paths": [
     "..\\CMSIS\\GD\\GD32F4xx\\Include",
     "..\\GD32_StdPeriph_Driver\\Include",
     "..\\CMSIS",
     "..\\User",
-    "..\\APP"
+    "..\\APP",
+    "..\\FreeRTOS\\include",
+    "..\\FreeRTOS\\Source\\include",
+    "..\\FreeRTOS\\portable\\RVDS\\ARM_CM4F",
+    "..\\VTFP\\vtfp-protocol\\c-types",
+    "..\\VTFP\\vtfp-runtime\\include",
+    "..\\VTFP\\vtfp-runtime\\src\\ports",
+    "..\\generated"
   ],
   "defines": [
     "GD32F405",
     "USE_STDPERIPH_DRIVER",
     "USE_USB_FS",
-    "USE_RTT"
+    "USE_RTT",
+    "USE_VTFP=1"
   ],
   "ide_type": "Keil",
   "flm_path_on_device": "FLM/GD32F4xx_1MB.FLM"

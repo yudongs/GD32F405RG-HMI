@@ -1,0 +1,19 @@
+# C build artifacts
+c-tests/*.o
+c-tests/test_layout
+c-tests/test_crc
+c-tests/test_cross_lang
+c-tests/*.bin
+
+# Python
+py/src/vtfp_proto/__pycache__/
+py/tests/__pycache__/
+py/.pytest_cache/
+py/src/vtfp_proto.egg-info/
+py/build/
+py/dist/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db

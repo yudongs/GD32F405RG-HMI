@@ -49,10 +49,16 @@ void FbClear(void)
 /**
  * @brief Flush entire framebuffer to LCD via SPI
  * @note 3 pixels are packed into 1 byte using ChangeTab lookup
+ * @note CS is held low during entire transfer for stable SPI signaling
  */
 void FlushToLCD(void)
 {
     u8 y, x, idx;
+
+    /* Disable interrupts during SPI transfer to prevent FreeRTOS tick from corrupting SPI timing */
+    __disable_irq();
+
+    wr_start();  /* assert CS */
 
     wr_cmd(0x2A);  /* Column Address Setting */
     wr_dat(0x00);
@@ -76,6 +82,10 @@ void FlushToLCD(void)
             wr_dat(ChangeTab[idx]);
         }
     }
+
+    wr_end();  /* deassert CS */
+
+    __enable_irq();
 }
 
 /**
@@ -120,6 +130,15 @@ void FbDumpHex(void)
 const u8 ChangeTab[] = {
     0x00, 0x03, 0x1C, 0x1F, 0xE0, 0xE3, 0xFC, 0xFF
 };
+
+/* Bridge: expose framebuffer to VTFP / lcd_server without breaking static-ness. */
+const u8 *lcd_get_fb(void) {
+    return (const u8 *)framebuffer;
+}
+
+u32 lcd_get_fb_size(void) {
+    return (u32)sizeof(framebuffer);
+}
 
 /* SPI send byte implementation */
 void spi_send_byte(u8 dat)
@@ -564,24 +583,36 @@ const u8 SolectriaSolar[] = {
  * ============================================ */
 
 /**
- * @brief Write Instruction Code
+ * @brief Write Instruction Code (CS managed by caller)
  */
 void wr_cmd(u8 cmd)
 {
     LCD_DC_LOW();
-    LCD_CS_LOW();
     spi_send_byte(cmd);
-    LCD_CS_HIGH();
 }
 
 /**
- * @brief Write Display RAM Data
+ * @brief Write Display RAM Data (CS managed by caller)
  */
 void wr_dat(u8 dat)
 {
     LCD_DC_HIGH();
-    LCD_CS_LOW();
     spi_send_byte(dat);
+}
+
+/**
+ * @brief Start write sequence - assert CS and set DC to command mode
+ */
+void wr_start(void)
+{
+    LCD_CS_LOW();
+}
+
+/**
+ * @brief End write sequence - deassert CS
+ */
+void wr_end(void)
+{
     LCD_CS_HIGH();
 }
 
@@ -607,56 +638,97 @@ void ST7586_initialize(void)
     delay_ms(500);
 
     /* read OPT data */
+    wr_start();
     wr_cmd(0xD7);
     wr_dat(0x9F);
+    wr_end();
+
+    wr_start();
     wr_cmd(0xE0);
     wr_dat(0x00);  /* OPT read enable */
+    wr_end();
 
     delay_ms(100);
+    wr_start();
     wr_cmd(0xE3);
+    wr_end();
     delay_ms(200);
+    wr_start();
     wr_cmd(0xE1);
+    wr_end();
 
     /* register initialization */
+    wr_start();
     wr_cmd(0x11);  /* exit sleep mode */
+    wr_end();
     delay_ms(50);
 
+    wr_start();
     wr_cmd(0xC0);  /* Set Vop - default contrast */
     wr_dat(0x44);  /* Vop7~Vop0 */
     wr_dat(0x01);  /* Vop8 */
+    wr_end();
 
+    wr_start();
     wr_cmd(0xC7);  /* Set Vop Offset */
     wr_dat(0x00);  /* Vop7~Vop0 */
+    wr_end();
 
+    wr_start();
     wr_cmd(0xC3);  /* Set Bias system */
     wr_dat(0x03);  /* 1/11 Bias */
+    wr_end();
 
+    wr_start();
     wr_cmd(0xC4);
     wr_dat(0x05);
+    wr_end();
     delay_ms(200);
 
+    wr_start();
     wr_cmd(0xD0);
     wr_dat(0x1D);
+    wr_end();
+
+    wr_start();
     wr_cmd(0xB5);
     wr_dat(0x8C);
-    wr_cmd(0x38);
+    wr_end();
 
+    wr_start();
+    wr_cmd(0x38);
+    wr_end();
+
+    wr_start();
     wr_cmd(0x3A);  /* Enable DDRAM Interface */
     wr_dat(0x02);
+    wr_end();
+
+    wr_start();
     wr_cmd(0x36);  /* Set scan direction of COM and SEG */
     wr_dat(0xC8);  /* MY=1, MX=1 */
+    wr_end();
 
+    wr_start();
     wr_cmd(0xB0);  /* Set Duty */
     wr_dat(0x9F);
+    wr_end();
 
+    wr_start();
     wr_cmd(0xB1);  /* First Output Com */
     wr_dat(0x00);  /* Start line */
+    wr_end();
 
+    wr_start();
     wr_cmd(0x20);
+    wr_end();
 
+    wr_start();
     wr_cmd(0x37);
     wr_dat(0x00);
+    wr_end();
 
+    wr_start();
     wr_cmd(0xF4);  /* Temperature Gradient Compensation */
     wr_dat(0x99);  /* MT1=4, MT0=3 */
     wr_dat(0x52);  /* MT3=1, MT2=1 */
@@ -666,8 +738,11 @@ void ST7586_initialize(void)
     wr_dat(0x00);  /* MTB=0, MTA=7 */
     wr_dat(0x9F);  /* MTD=8, MTV=0 */
     wr_dat(0xFF);  /* MTF=15, MTE=15 */
+    wr_end();
 
+    wr_start();
     wr_cmd(0x29);  /* Display On */
+    wr_end();
 
     FbClear();        /* clear framebuffer */
     FlushToLCD();     /* flush blank screen */
@@ -679,10 +754,12 @@ void ST7586_initialize(void)
  */
 void LcdOnOff(u8 onoff)
 {
+    wr_start();
     if (onoff == 1)
         wr_cmd(0x29);  /* display on */
     else if (onoff == 0)
         wr_cmd(0x28);  /* display off */
+    wr_end();
 }
 
 /**

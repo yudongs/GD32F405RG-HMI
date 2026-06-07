@@ -1,0 +1,101 @@
+<h2>主题色 / 像素渲染风格</h2>
+<p class="subtitle">LCD 是 1bpp 单色屏，但显示风格可以不同。选一个最贴近你想要的感觉</p>
+
+<div class="cards">
+  <!-- A: 仿 ST7586 真实感 -->
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD · 20 fps · COM4 · 已连接 ●</div>
+        <div class="mockup-body" style="display:flex;align-items:center;justify-content:center;background:#0a0e14;min-height:200px">
+          <div style="background:#2a3a1c;border:3px solid #444;box-shadow:inset 0 0 20px rgba(0,0,0,0.6),0 0 30px rgba(60,80,40,0.2);width:200px;height:133px;position:relative;background-image:linear-gradient(45deg,#1a2410 25%,transparent 25%),linear-gradient(-45deg,#1a2410 25%,transparent 25%);background-size:6px 6px;padding:8px">
+            <div style="background:#9eb87a;width:8px;height:6px;display:inline-block;margin:1px"></div>
+            <div style="background:#9eb87a;width:8px;height:6px;display:inline-block;margin:1px;box-shadow:8px 0 0 #9eb87a,16px 0 0 #9eb87a,24px 0 0 #9eb87a,32px 0 0 #9eb87a"></div>
+            <div style="background:#9eb87a;width:24px;height:6px;display:inline-block;margin:1px"></div>
+            <div style="margin-top:12px;background:#9eb87a;width:64px;height:6px;display:inline-block;margin:1px"></div>
+            <div style="background:#9eb87a;width:8px;height:6px;display:inline-block;margin:1px"></div>
+            <div style="background:#9eb87a;width:8px;height:6px;display:inline-block;margin:1px"></div>
+          </div>
+        </div>
+        <div class="mockup-header" style="background:#1a1a2e;color:#a0d0a0">▶ 开始 · ⏸ 暂停 · 周期 50ms · 💾 保存当前帧</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 仿 ST7586 真实感</h3>
+      <p>暗黄绿底 + 浅黄绿像素，复古 LCD 工业屏观感。开发调试看着舒服。</p>
+    </div>
+  </div>
+
+  <!-- B: 现代深色 + 高对比 -->
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD · 20 fps · COM4 · 已连接 ●</div>
+        <div class="mockup-body" style="display:flex;align-items:center;justify-content:center;background:#0a0a14;min-height:200px">
+          <div style="background:#000;border:2px solid #1a3a1a;box-shadow:0 0 24px rgba(80,255,120,0.15);width:200px;height:133px;padding:8px">
+            <div style="color:#50ff78;font-family:monospace;font-size:8px;line-height:1;letter-spacing:0">■■■■  ■■■</div>
+            <div style="color:#50ff78;font-family:monospace;font-size:8px;line-height:1;margin-top:3px">■■■■■■■  ■</div>
+            <div style="color:#50ff78;font-family:monospace;font-size:8px;line-height:1;margin-top:6px">■■■■■■■■■</div>
+            <div style="color:#50ff78;font-family:monospace;font-size:8px;line-height:1;margin-top:4px">  ■■■■  ■■</div>
+            <div style="color:#50ff78;font-family:monospace;font-size:8px;line-height:1;margin-top:8px">■■■■■■■■■■■</div>
+          </div>
+        </div>
+        <div class="mockup-header" style="background:#111;color:#50ff78">▶ 开始 · ⏸ 暂停 · 周期 50ms · 💾 保存当前帧</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 现代深色 + 高对比</h3>
+      <p>纯黑底 + 亮绿/青色像素，终端 CRT 风格。最锐利、最易辨识像素。</p>
+    </div>
+  </div>
+
+  <!-- C: 浅色主题 -->
+  <div class="card" data-choice="C" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD · 20 fps · COM4 · 已连接 ●</div>
+        <div class="mockup-body" style="display:flex;align-items:center;justify-content:center;background:#f5f5f5;min-height:200px">
+          <div style="background:#fff;border:2px solid #ccc;width:200px;height:133px;padding:8px;color:#1a1a1a;font-family:monospace;font-size:8px;line-height:1.1">
+            <div>■■■■  ■■■</div>
+            <div style="margin-top:3px">■■■■■■■  ■</div>
+            <div style="margin-top:6px">■■■■■■■■■</div>
+            <div style="margin-top:4px">  ■■■■  ■■</div>
+            <div style="margin-top:8px">■■■■■■■■■■■</div>
+          </div>
+        </div>
+        <div class="mockup-header" style="background:#eee;color:#333">▶ 开始 · ⏸ 暂停 · 周期 50ms · 💾 保存当前帧</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 浅色 / 文档风格</h3>
+      <p>白底黑像素。最朴素，截图放进文档/PPT 不会喧宾夺主。</p>
+    </div>
+  </div>
+
+  <!-- D: 1:1 像素（不缩放） -->
+  <div class="card" data-choice="D" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">GD32 LCD · 20 fps · COM4 · 已连接 ●</div>
+        <div class="mockup-body" style="display:flex;align-items:center;justify-content:center;background:#0a0a14;min-height:200px">
+          <div style="background:#000;border:1px solid #333;width:240px;height:160px;display:grid;grid-template-columns:repeat(240,1fr);grid-template-rows:repeat(160,1fr);image-rendering:pixelated">
+            <div style="grid-column:80/120;grid-row:30/45;background:#50ff78"></div>
+            <div style="grid-column:130/180;grid-row:30/45;background:#50ff78"></div>
+            <div style="grid-column:100/160;grid-row:80/110;background:#50ff78"></div>
+            <div style="grid-column:120/150;grid-row:120/135;background:#50ff78"></div>
+          </div>
+        </div>
+        <div class="mockup-header" style="background:#111;color:#50ff78">▶ 开始 · ⏸ 暂停 · 周期 50ms · 💾 保存当前帧</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D · 1:1 真实像素</h3>
+      <p>240×160 原生 1:1，无缩放，pixelated。最忠实于硬件布局。</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:16px;background:#2a2a3a;border-radius:6px;color:#888;font-size:12px">
+  <b style="color:#a0d0a0">提示：</b>ST7586 是 1bpp 单色 LCD。原始定义是「暗点 + 亮底」。A 最贴近硬件实物，B/C/D 是不同取舍。
+  即使选 B/C/D，实际数据仍然来自 4800 字节的 1bpp 原始数据 — 主题色只是渲染层装饰。
+</div>

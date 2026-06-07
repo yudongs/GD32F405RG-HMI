@@ -1,5 +1,5 @@
 {
-  "com_port": "COM11",
+  "com_port": "COM4",
   "baudrate": 115200,
   "mcu_key": "gd32f4",
   "ide_type": "Keil",
