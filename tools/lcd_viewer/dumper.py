@@ -20,7 +20,7 @@ import threading
 from typing import Callable
 
 from tools.lcd_viewer import config
-from tools.lcd_viewer.frame import Frame, parse_dump_memory_json
+from tools.lcd_viewer.frame import Frame, FrameAccumulator, parse_dump_memory_block
 
 log = logging.getLogger("lcd_viewer.dumper")
 
@@ -47,6 +47,7 @@ class Dumper:
         self._reader_thread: threading.Thread | None = None
         self._latest: Frame | None = None
         self._state: DumperState = DumperState.IDLE
+        self._acc: FrameAccumulator = FrameAccumulator()
         self._lock = asyncio.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
 
@@ -93,12 +94,16 @@ class Dumper:
                 await self._stop_locked()
             self._loop = asyncio.get_running_loop()
             period_s = period_ms / 1000.0
+            # mklink's dump-memory semantics: --frames 0 means "infinite",
+            # but it requires --duration > 0 in that mode. Use a long
+            # duration (1 day); the dumper's stop() kills the subprocess
+            # cleanly so the actual wall-clock duration is bounded.
             cmd = [
                 sys.executable, "-m", "mklink", "dump-memory",
                 f"{config.FB_ADDR:#x}:{config.FB_SIZE}",
                 "--period", str(period_s),
                 "--frames", "0",
-                "--duration", "0",
+                "--duration", "86400",  # 1 day
                 "--json",
             ]
             log.info("spawn: %s", " ".join(cmd))
@@ -196,10 +201,20 @@ class Dumper:
                     break
                 if not line.strip():
                     continue
+                # mklink dump-memory with --frames 0 emits human status
+                # lines like "[*] Connecting COM4 ..." and
+                # "[*] cmd.dump_memory(...)" to stdout before/alongside
+                # the JSON. Skip anything that isn't a JSON object.
+                if not line.lstrip().startswith("{"):
+                    continue
                 try:
-                    frame = parse_dump_memory_json(line)
+                    block = parse_dump_memory_block(line)
                 except Exception as e:
                     log.warning("parse error: %s", e)
+                    continue
+                frame = self._acc.feed(block)
+                if frame is None:
+                    # Incomplete sample (waiting for more blocks).
                     continue
                 self._latest = frame
                 try:

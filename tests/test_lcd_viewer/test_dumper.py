@@ -3,13 +3,15 @@
 We patch `subprocess.Popen` to return a mock whose `.stdout` is an iterable
 of strings (JSON lines), simulating dump-memory's output. We then drive
 the Dumper through start → frames → stop and assert state changes.
+
+Protocol: each line is one B1 chunk of a sample. For a 4800-byte region with
+2048-byte blocks, a full sample = 3 lines (block_index 0, 1, 2). The reader
+must accumulate blocks and only publish a complete Frame.
 """
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,13 +21,40 @@ from tools.lcd_viewer.dumper import Dumper, DumperState
 from tools.lcd_viewer.frame import Frame
 
 
-def _make_json_line(ts_us: int = 100) -> str:
-    blocks = [
-        {"offset": 0, "size": 2048, "payload_b64": base64.b64encode(b"\x00" * 2048).decode()},
-        {"offset": 2048, "size": 2048, "payload_b64": base64.b64encode(b"\x00" * 2048).decode()},
-        {"offset": 4096, "size": 704, "payload_b64": base64.b64encode(b"\x00" * 704).decode()},
+def _make_block_line(
+    block_index: int,
+    block_count: int = 3,
+    ts_us: int = 100,
+    size: int = 2048,
+    fill: int = 0x00,
+) -> str:
+    """Build one mklink-format dump-memory JSON line (one B1 chunk)."""
+    obj = {
+        "timestamp_us": ts_us,
+        "format": "B1",
+        "flags": 0,
+        "regions": [{
+            "index": 0,
+            "address": "0x20001BA4",
+            "size": size,
+            "hex": " ".join(f"{fill:02X}" for _ in range(size)),
+        }],
+        "total_size": 4800,
+        "block_size": 2048,
+        "block_index": block_index,
+        "block_count": block_count,
+        "block_crc_ok": True,
+    }
+    return json.dumps(obj)
+
+
+def _make_sample_lines(ts_us: int, fill: int = 0x00) -> list[str]:
+    """Build the 3 B1 lines for a single 4800-byte sample."""
+    return [
+        _make_block_line(0, 3, ts_us, 2048, fill),
+        _make_block_line(1, 3, ts_us, 2048, fill),
+        _make_block_line(2, 3, ts_us, 704, fill),
     ]
-    return json.dumps({"ts_us": ts_us, "blocks": blocks})
 
 
 def _make_mock_proc(stdout_lines: list[str], returncode: int = 0) -> MagicMock:
@@ -54,9 +83,10 @@ async def test_dumper_transitions_to_running_on_first_frame():
 
     d = Dumper(on_state_change=on_state)
     with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
-        mock_popen.return_value = _make_mock_proc([_make_json_line(123)])
+        # 3 lines = one full sample
+        mock_popen.return_value = _make_mock_proc(_make_sample_lines(ts_us=123))
         await d.start(period_ms=50)
-        # Allow the reader task to process one frame.
+        # Allow the reader task to process all 3 blocks.
         await asyncio.sleep(0.05)
 
     assert d.latest_frame is not None
@@ -65,6 +95,23 @@ async def test_dumper_transitions_to_running_on_first_frame():
     assert any(s == DumperState.STARTING for s, _ in state_changes)
     assert any(s == DumperState.RUNNING for s, _ in state_changes)
 
+    await d.stop()
+
+
+@pytest.mark.asyncio
+async def test_dumper_does_not_publish_partial_sample():
+    """Feeding only 1 or 2 blocks must NOT publish a Frame."""
+    d = Dumper()
+    with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
+        # Only 2 of 3 blocks for a sample
+        mock_popen.return_value = _make_mock_proc([
+            _make_block_line(0, 3, ts_us=99),
+            _make_block_line(1, 3, ts_us=99),
+        ])
+        await d.start(period_ms=50)
+        await asyncio.sleep(0.05)
+    assert d.latest_frame is None
+    assert d.state == DumperState.STARTING  # still waiting
     await d.stop()
 
 
@@ -100,12 +147,12 @@ async def test_dumper_force_kills_on_timeout():
 
 @pytest.mark.asyncio
 async def test_dumper_handles_parse_errors_gracefully():
-    """A malformed JSON line must not crash the reader; the next good line wins."""
+    """A malformed JSON line must not crash the reader; the next good block wins."""
     d = Dumper()
     with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
         mock_popen.return_value = _make_mock_proc([
-            "not json",                       # ignored
-            _make_json_line(ts_us=99),        # accepted
+            "not json",  # ignored
+            *_make_sample_lines(ts_us=99, fill=0xCC),  # accepted
         ])
         await d.start(period_ms=50)
         await asyncio.sleep(0.05)
@@ -140,8 +187,8 @@ def test_dumper_state_enum_has_required_values():
 
 
 @pytest.mark.asyncio
-async def test_dumper_invokes_new_frame_callback_per_frame():
-    """on_new_frame() must be called once per published frame, in the reader loop.
+async def test_dumper_invokes_new_frame_callback_per_published_frame():
+    """on_new_frame() must be called once per *published* (complete) Frame.
 
     This is the contract WSServer relies on for event-driven broadcast.
     """
@@ -153,18 +200,19 @@ async def test_dumper_invokes_new_frame_callback_per_frame():
 
     d = Dumper()
     d.set_new_frame_callback(on_new_frame)
+    # 3 samples × 3 blocks each = 9 lines, but only 3 should publish a Frame.
     with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
         mock_popen.return_value = _make_mock_proc([
-            _make_json_line(1),
-            _make_json_line(2),
-            _make_json_line(3),
+            *_make_sample_lines(ts_us=1, fill=0x11),
+            *_make_sample_lines(ts_us=2, fill=0x22),
+            *_make_sample_lines(ts_us=3, fill=0x33),
         ])
         await d.start(period_ms=50)
-        # Allow the reader task to consume all three lines.
+        # Allow the reader task to consume all 9 lines.
         await asyncio.sleep(0.1)
 
     assert callback_count == 3, (
-        f"expected 3 callback invocations, got {callback_count}"
+        f"expected 3 callback invocations (one per Frame), got {callback_count}"
     )
     await d.stop()
 
@@ -179,13 +227,13 @@ async def test_dumper_new_frame_callback_errors_do_not_break_reader():
     d.set_new_frame_callback(on_new_frame)
     with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
         mock_popen.return_value = _make_mock_proc([
-            _make_json_line(10),
-            _make_json_line(11),
+            *_make_sample_lines(ts_us=10, fill=0xAA),
+            *_make_sample_lines(ts_us=11, fill=0xBB),
         ])
         await d.start(period_ms=50)
         await asyncio.sleep(0.1)
 
-    # Reader kept going — both frames were published.
+    # Reader kept going — last published frame is the second one.
     assert d.latest_frame is not None
     assert d.latest_frame.ts_us == 11
     await d.stop()

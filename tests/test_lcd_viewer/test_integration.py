@@ -2,14 +2,14 @@
 
 Verifies that a frame emitted by the (mocked) subprocess arrives at a
 WebSocket client as exactly 4800 bytes in the correct order.
+
+Protocol: each stdout line is one B1 chunk. A full 4800-byte sample = 3
+lines (block_index 0, 1, 2; sizes 2048, 2048, 704).
 """
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
-import os
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -17,17 +17,36 @@ import websockets
 
 from tools.lcd_viewer import config
 from tools.lcd_viewer.dumper import Dumper
-from tools.lcd_viewer.frame import Frame
 from tools.lcd_viewer.ws_server import WSServer
 
 
-def _json_line(ts_us: int, fill: int = 0x55) -> str:
-    chunks = [(0, 2048), (2048, 2048), (4096, 704)]
-    blocks = [
-        {"offset": off, "size": sz, "payload_b64": base64.b64encode(bytes([fill] * sz)).decode()}
-        for off, sz in chunks
+def _block_line(block_index: int, ts_us: int, size: int, fill: int) -> str:
+    obj = {
+        "timestamp_us": ts_us,
+        "format": "B1",
+        "flags": 0,
+        "regions": [{
+            "index": 0,
+            "address": "0x20001BA4",
+            "size": size,
+            "hex": " ".join(f"{fill:02X}" for _ in range(size)),
+        }],
+        "total_size": 4800,
+        "block_size": 2048,
+        "block_index": block_index,
+        "block_count": 3,
+        "block_crc_ok": True,
+    }
+    return json.dumps(obj)
+
+
+def _sample_lines(ts_us: int, fill: int) -> list[str]:
+    """3 lines for a single 4800-byte sample (2048 + 2048 + 704)."""
+    return [
+        _block_line(0, ts_us, 2048, fill),
+        _block_line(1, ts_us, 2048, fill),
+        _block_line(2, ts_us, 704, fill),
     ]
-    return json.dumps({"ts_us": ts_us, "blocks": blocks})
 
 
 @pytest.mark.asyncio
@@ -38,12 +57,14 @@ async def test_end_to_end_frame_delivery():
     server_task = asyncio.create_task(server.start(host="127.0.0.1", port=18999))
     await asyncio.sleep(0.1)
 
-    # Drive 3 frames into the mocked dump-memory subprocess.
+    # Drive 3 samples (= 9 B1 lines) into the mocked dump-memory subprocess.
     with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
         mock_proc = mock_popen.return_value
-        mock_proc.stdout = iter([_json_line(1, 0x11),
-                                 _json_line(2, 0x22),
-                                 _json_line(3, 0x33)])
+        mock_proc.stdout = iter([
+            *_sample_lines(1, 0x11),
+            *_sample_lines(2, 0x22),
+            *_sample_lines(3, 0x33),
+        ])
         mock_proc.poll.return_value = None
         mock_proc.wait.return_value = 0
 
