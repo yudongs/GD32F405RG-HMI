@@ -103,7 +103,7 @@ ws_server.py ←→ dumper.py
 | 保存格式 | PNG（240×160 黑白，PIL 已装）|
 | 进程生命周期 | 首个客户端连上才启动；最后一个退出后停止 |
 | 端口 | 8765 |
-| 周期 | 50ms 默认，UI 可改（10~200ms 范围）|
+| 周期 | 50ms 默认，UI 可改（建议硬限 10~200ms，10ms 受 B1 传输 10.4ms 物理约束）|
 
 ## Data Flow
 
@@ -167,7 +167,7 @@ Browser 关闭 ──► WS close ──► server 收到 disconnect
 | 消息 | 含义 |
 |------|------|
 | `{"type":"set_period", "ms":30}` | 改采样周期 → server 杀子进程后用新周期重启 |
-| `{"type":"pause"}` / `{"type":"resume"}` | 客户端渲染暂停（不杀子进程）|
+| `{"type":"pause"}` / `{"type":"resume"}` | 客户端渲染暂停/恢复（不杀子进程；按钮为单一 toggle）|
 | `{"type":"save_png"}` | 请求保存 → server 把当前最新帧以 PNG 流回 |
 
 ### 保存 PNG 流程
@@ -181,7 +181,7 @@ Server: 收到 {"type":"save_png"}
    ├─ 取 latest_frame.payload (4800B)
    ├─ PIL 转 240×160 mode='1' (黑/白两色)
    ├─ io.BytesIO 编码 PNG
-   └─ binary 帧回发: [4B len][PNG bytes]
+   └─ binary 帧回发: [4B little-endian uint32 PNG 长度][PNG bytes]
               │
               ▼
 Browser: 触发 <a download="frame_<ts>.png">
@@ -219,10 +219,17 @@ Browser: 触发 <a download="frame_<ts>.png">
         │  IDLE    │
         └──────────┘
 
- 任何状态 ── subprocess 非 0 退出 ──► ERROR
+ 任何状态 ── subprocess 非 0 退出 ──► ERROR (推 status:error 给所有客户端)
                                        │
                                        │ 下个客户端连上时
                                        └─► STARTING (重试)
+
+### Dumper 状态对 WS Server 暴露
+
+`Dumper` 内部维护一个状态机：`idle → starting → running → stopping → idle`，外加 `error` 终态。
+
+WS server 持有 Dumper 引用，注册回调 `on_state_change(state, msg)` 推 `status` 消息给所有客户端。
+具体暴露方式（property + event emitter / callback）由 plan 阶段决定，本 spec 不锁定实现细节。
 ```
 
 ## Error Handling
@@ -332,6 +339,23 @@ class Dumper:
 - Canvas 真实尺寸 240×160，浏览器原生像素，无缩放
 - 顶栏每 1s 更新 FPS / 累计帧 / 状态点
 - 控件直接对应 WS JSON 控制消息
+
+### 初始加载 UX
+
+页面打开到首帧到达的时序：
+
+```
+0ms     页面加载，<canvas> 全黑
+50ms    WS 连接成功
+50ms    收到 hello JSON，顶栏显示 "等待首帧…"
+50ms    客户端 connect 触发 server 启 dumper
+200ms   dump-memory 子进程启动，首帧 B1 收齐
+200ms   收到第 1 个 binary 帧，canvas 渲染
+200ms+  顶栏状态点 "●" 变绿，FPS 开始累加
+```
+
+`status: starting` 期间 canvas 保持全黑，顶栏文字显示 "等待首帧…"，避免用户以为卡死。
+若 5 秒内未收到首帧（`status: error` 触发条件之一），顶栏显示 "● error: dump-memory 启动失败"。
 
 ## Testing Strategy
 
