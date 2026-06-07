@@ -133,3 +133,131 @@ async def test_dumper_not_restarted_when_second_client_connects():
             await server_task
         except (asyncio.CancelledError, Exception):
             pass
+
+
+# ----- HTTP static-file tests (regression for the 426 Upgrade Required bug) -----
+
+async def _http_get(host: str, port: int, path: str, timeout: float = 2.0) -> tuple[int, dict, bytes]:
+    """Async HTTP GET that cooperates with the running event loop.
+
+    Returns (status, headers, body). Uses a fresh TCP connection per call.
+    """
+    reader, writer = await asyncio.wait_for(
+        asyncio.open_connection(host, port), timeout=timeout
+    )
+    try:
+        req = (
+            f"GET {path} HTTP/1.1\r\n"
+            f"Host: {host}:{port}\r\n"
+            f"Connection: close\r\n"
+            f"\r\n"
+        ).encode("ascii")
+        writer.write(req)
+        await writer.drain()
+        # Read until EOF (server uses Connection: close).
+        chunks: list[bytes] = []
+        while True:
+            chunk = await asyncio.wait_for(reader.read(4096), timeout=timeout)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        raw = b"".join(chunks)
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+    # Parse status line + headers.
+    head, _, body = raw.partition(b"\r\n\r\n")
+    status_line, _, header_lines = head.partition(b"\r\n")
+    parts = status_line.split(b" ", 2)
+    status = int(parts[1]) if len(parts) >= 2 else 0
+    headers: dict[str, str] = {}
+    for line in header_lines.split(b"\r\n"):
+        if b":" in line:
+            k, _, v = line.partition(b":")
+            headers[k.decode("ascii").strip().lower()] = v.decode("ascii").strip()
+    return status, headers, body
+
+
+async def _start_server_with_web_dir(
+    dumper, web_dir, port: int
+) -> tuple[WSServer, asyncio.Task]:
+    server = WSServer(dumper=dumper)  # type: ignore[arg-type]
+    # Replace the static-file dir with our test fixture dir.
+    server._web_dir = web_dir  # type: ignore[attr-defined]
+    server_task = asyncio.create_task(server.start(host="127.0.0.1", port=port))
+    await asyncio.sleep(0.1)  # let the server bind
+    return server, server_task
+
+
+async def _stop_server(server: WSServer, server_task: asyncio.Task) -> None:
+    await server.stop()
+    server_task.cancel()
+    try:
+        await server_task
+    except (asyncio.CancelledError, Exception):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_http_serves_index_html(tmp_path):
+    """Plain HTTP GET / must serve web/index.html, not 426 Upgrade Required."""
+    (tmp_path / "index.html").write_text("<h1>hi from index</h1>", encoding="utf-8")
+    server, server_task = await _start_server_with_web_dir(
+        FakeDumper(), tmp_path, 18770
+    )
+    try:
+        status, headers, body = await _http_get("127.0.0.1", 18770, "/")
+        assert status == 200, f"expected 200, got {status} (body={body!r})"
+        assert b"<h1>hi from index</h1>" in body
+        ctype = headers.get("content-type", "")
+        assert "text/html" in ctype
+    finally:
+        await _stop_server(server, server_task)
+
+
+@pytest.mark.asyncio
+async def test_http_returns_404_for_missing_file(tmp_path):
+    """Unknown path must return 404, not 426."""
+    server, server_task = await _start_server_with_web_dir(
+        FakeDumper(), tmp_path, 18771
+    )
+    try:
+        status, _headers, body = await _http_get("127.0.0.1", 18771, "/nonexistent.js")
+        assert status == 404, f"expected 404, got {status} (body={body!r})"
+    finally:
+        await _stop_server(server, server_task)
+
+
+@pytest.mark.asyncio
+async def test_http_serves_app_js(tmp_path):
+    """Static file under web/ is served with the right content-type."""
+    (tmp_path / "app.js").write_text("//MARKER app.js body", encoding="utf-8")
+    server, server_task = await _start_server_with_web_dir(
+        FakeDumper(), tmp_path, 18772
+    )
+    try:
+        status, headers, body = await _http_get("127.0.0.1", 18772, "/app.js")
+        assert status == 200, f"expected 200, got {status} (body={body!r})"
+        assert b"//MARKER app.js body" in body
+        ctype = headers.get("content-type", "")
+        assert "javascript" in ctype
+    finally:
+        await _stop_server(server, server_task)
+
+
+@pytest.mark.asyncio
+async def test_http_serves_index_via_query_string(tmp_path):
+    """/?foo=bar must still serve index.html (regression for query handling)."""
+    (tmp_path / "index.html").write_text("<title>root</title>", encoding="utf-8")
+    server, server_task = await _start_server_with_web_dir(
+        FakeDumper(), tmp_path, 18773
+    )
+    try:
+        status, _headers, body = await _http_get("127.0.0.1", 18773, "/?foo=bar")
+        assert status == 200, f"expected 200, got {status} (body={body!r})"
+        assert b"<title>root</title>" in body
+    finally:
+        await _stop_server(server, server_task)

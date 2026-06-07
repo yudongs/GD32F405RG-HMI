@@ -20,6 +20,8 @@ from typing import Any, Protocol
 
 import websockets
 from websockets.asyncio.server import ServerConnection, serve
+from websockets.datastructures import Headers
+from websockets.http11 import Request, Response
 
 from tools.lcd_viewer import config
 
@@ -64,8 +66,15 @@ class WSServer:
     # ----- lifecycle -----
 
     async def start(self, host: str = config.HOST, port: int = config.PORT) -> None:
+        # process_request runs BEFORE the WebSocket handshake. If it returns
+        # None, the WS handshake proceeds. If it returns a Response, the WS
+        # handshake is skipped and that HTTP response is sent instead.
+        # We use it to route plain HTTP GETs to the static-file handler
+        # and let /ws continue through the WebSocket handler.
         self._ws_server = await serve(
-            self._handler, host, port, ping_interval=20, ping_timeout=20
+            self._handler, host, port,
+            process_request=self._process_request,
+            ping_interval=20, ping_timeout=20,
         )
         log.info("listening on ws://%s:%d%s", host, port, config.WS_PATH)
 
@@ -82,35 +91,40 @@ class WSServer:
     # ----- connection handler -----
 
     async def _handler(self, connection: ServerConnection) -> None:
-        # websockets 16.0: the request path is on connection.request.path.
-        # The connection is a ServerConnection regardless of whether it's
-        # WS or plain HTTP; we route based on path.
-        path = connection.request.path
-        log.info("client connected: %s %s", connection.remote_address, path)
+        # process_request already routed non-WS paths to static files. If
+        # we reach the handler, this is a real WebSocket upgrade on /ws.
+        log.info("client connected: %s %s", connection.remote_address, connection.request.path)
+        await self._ws_loop(connection)
 
-        # Route: /ws → WebSocket. Anything else → static file.
+    # ----- HTTP static files (process_request) -----
+
+    def _process_request(
+        self, connection: ServerConnection, request: Request
+    ) -> Response | None:
+        """Intercepts every connection before the WebSocket handshake.
+
+        - /ws (with or without query string) → return None → WS handshake proceeds.
+        - Anything else → serve a static file from self._web_dir, return Response.
+        """
+        path = request.path
         if path == config.WS_PATH or path.startswith(config.WS_PATH + "?"):
-            await self._ws_loop(connection)
-        else:
-            await self._serve_http(connection, path)
+            return None  # proceed with WebSocket handshake
+        return self._build_static_response(path)
 
-    # ----- HTTP static files -----
-
-    async def _serve_http(self, connection: ServerConnection, path: str) -> None:
-        # Map "/" → index.html; otherwise strip leading "/".
-        if path in ("/", ""):
+    def _build_static_response(self, path: str) -> Response:
+        # Strip query string first, then map "/" → index.html.
+        path_no_query = path.split("?", 1)[0]
+        if path_no_query in ("/", ""):
             rel = "index.html"
         else:
-            # Strip query string if any.
-            rel = path.split("?", 1)[0].lstrip("/")
-        # Prevent path traversal.
+            rel = path_no_query.lstrip("/")
+        # Prevent path traversal: resolved target must live inside _web_dir.
+        web_dir = self._web_dir.resolve()
         target = (self._web_dir / rel).resolve()
-        if not str(target).startswith(str(self._web_dir.resolve())):
-            await self._http_response(connection, 403, b"forbidden", "text/plain")
-            return
+        if web_dir not in target.parents and target != web_dir:
+            return self._http_response(403, b"forbidden", "text/plain")
         if not target.is_file():
-            await self._http_response(connection, 404, b"not found", "text/plain")
-            return
+            return self._http_response(404, b"not found", "text/plain")
         ext = target.suffix.lower()
         ctype = {
             ".html": "text/html; charset=utf-8",
@@ -122,32 +136,18 @@ class WSServer:
             ".json": "application/json; charset=utf-8",
         }.get(ext, "application/octet-stream")
         body = target.read_bytes()
-        await self._http_response(connection, 200, body, ctype)
+        return self._http_response(200, body, ctype)
 
     @staticmethod
-    async def _http_response(
-        connection: ServerConnection, status: int, body: bytes, ctype: str
-    ) -> None:
+    def _http_response(status: int, body: bytes, ctype: str) -> Response:
         reason = {200: "OK", 403: "Forbidden", 404: "Not Found"}.get(status, "OK")
-        headers = [
+        # Headers takes list-of-pairs; pass the canonical HTTP header names.
+        headers = Headers([
             ("Content-Type", ctype),
             ("Content-Length", str(len(body))),
             ("Connection", "close"),
-        ]
-        # websockets lib exposes `connection.transport` for raw HTTP responses.
-        transport = connection.transport
-        if transport is None:
-            return
-        transport.write(
-            f"HTTP/1.1 {status} {reason}\r\n".encode("ascii")
-            + b"".join(f"{k}: {v}\r\n".encode("ascii") for k, v in headers)
-            + b"\r\n"
-            + body
-        )
-        try:
-            await connection.close()
-        except Exception:
-            pass
+        ])
+        return Response(status, reason, headers, body)
 
     # ----- WebSocket protocol -----
 
