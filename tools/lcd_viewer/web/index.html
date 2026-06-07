@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MKLink LCD Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #0a0a14;
+    color: #50ff78;
+    font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .header {
+    width: 100%;
+    max-width: 720px;
+    text-align: center;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #111;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+  }
+  .header h1 {
+    font-size: 14px;
+    font-weight: normal;
+    letter-spacing: 2px;
+    color: #50ff78;
+  }
+  .stats {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #888;
+  }
+  .stats b { color: #50ff78; font-weight: normal; }
+  .canvas-wrap {
+    background: #000;
+    border: 1px solid #1a3a1a;
+    box-shadow: 0 0 24px rgba(80, 255, 120, 0.10);
+    padding: 8px;
+  }
+  canvas#lcd {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000;
+  }
+  .controls {
+    width: 100%;
+    max-width: 720px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    background: #111;
+    border: 1px solid #1a3a1a;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  button, input[type="number"] {
+    background: #000;
+    color: #50ff78;
+    border: 1px solid #1a3a1a;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:hover { background: #1a3a1a; }
+  input[type="number"] { width: 60px; text-align: center; }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .status-dot.running { background: #50ff78; }
+  .status-dot.error   { background: #ff5050; }
+  .status-dot.starting{ background: #ffd060; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>
+    <span class="status-dot" id="status-dot"></span>
+    GD32 LCD · <b id="status-text">connecting…</b>
+  </h1>
+  <div class="stats">
+    分辨率 <b>240×160</b>
+    · 实际 FPS <b id="fps">--</b>
+    · 累计帧 <b id="frames">0</b>
+    · 末帧 ts <b id="last-ts">--</b>
+  </div>
+</div>
+<div class="canvas-wrap">
+  <canvas id="lcd" width="240" height="160"></canvas>
+</div>
+<div class="controls">
+  <button id="btn-pause">⏸ 暂停</button>
+  <span>周期</span>
+  <input type="number" id="period" min="10" max="200" step="5" value="50">
+  <span>ms</span>
+  <button id="btn-save">💾 保存当前帧</button>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
