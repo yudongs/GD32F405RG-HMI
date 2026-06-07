@@ -1,0 +1,269 @@
+"""WebSocket + static-file server for the LCD framebuffer web viewer.
+
+Layout:
+- HTTP GET /            → serves web/index.html
+- HTTP GET /<file>      → serves web/<file> (app.js, etc.)
+- WS    /ws             → streams 4800-byte binary frames + JSON control
+
+The server owns a Dumper. It starts the dumper when the first client
+connects, and stops it when the last client disconnects.
+"""
+from __future__ import annotations
+
+import asyncio
+import io
+import json
+import logging
+import pathlib
+import struct
+from typing import Any, Protocol
+
+import websockets
+from websockets.asyncio.server import ServerConnection, serve
+
+from tools.lcd_viewer import config
+
+log = logging.getLogger("lcd_viewer.ws_server")
+
+
+class DumperLike(Protocol):
+    """Anything that quacks like a Dumper — kept loose for testing."""
+    state: Any
+    latest_frame: Any
+
+    async def start(self, period_ms: int) -> None: ...
+    async def stop(self) -> None: ...
+    def set_state_callback(self, cb) -> None: ...
+
+
+class WSServer:
+    """WebSocket server + static HTTP file server.
+
+    One instance = one TCP listener. Multiple clients share the same
+    Dumper (started on first connect, stopped on last disconnect).
+    """
+
+    def __init__(self, dumper: DumperLike) -> None:
+        self._dumper = dumper
+        self._ws_server: Any = None
+        self._clients: set[ServerConnection] = set()
+        self._client_count = 0
+        self._lock = asyncio.Lock()
+        self._state_task: asyncio.Task | None = None
+        # Static file directory.
+        self._web_dir = pathlib.Path(__file__).parent / "web"
+        # dumper → ws_server state broadcast.
+        self._dumper.set_state_callback(self._on_dumper_state)
+        # Default period for first start.
+        self._period_ms: int = config.DEFAULT_PERIOD_MS
+
+    @property
+    def client_count(self) -> int:
+        return self._client_count
+
+    # ----- lifecycle -----
+
+    async def start(self, host: str = config.HOST, port: int = config.PORT) -> None:
+        self._ws_server = await serve(
+            self._handler, host, port, ping_interval=20, ping_timeout=20
+        )
+        log.info("listening on ws://%s:%d%s", host, port, config.WS_PATH)
+
+    async def stop(self) -> None:
+        if self._ws_server is not None:
+            self._ws_server.close()
+            await self._ws_server.wait_closed()
+            self._ws_server = None
+
+    async def serve_forever(self) -> None:
+        if self._ws_server is not None:
+            await self._ws_server.wait_closed()
+
+    # ----- connection handler -----
+
+    async def _handler(self, connection: ServerConnection) -> None:
+        # websockets 16.0: the request path is on connection.request.path.
+        # The connection is a ServerConnection regardless of whether it's
+        # WS or plain HTTP; we route based on path.
+        path = connection.request.path
+        log.info("client connected: %s %s", connection.remote_address, path)
+
+        # Route: /ws → WebSocket. Anything else → static file.
+        if path == config.WS_PATH or path.startswith(config.WS_PATH + "?"):
+            await self._ws_loop(connection)
+        else:
+            await self._serve_http(connection, path)
+
+    # ----- HTTP static files -----
+
+    async def _serve_http(self, connection: ServerConnection, path: str) -> None:
+        # Map "/" → index.html; otherwise strip leading "/".
+        if path in ("/", ""):
+            rel = "index.html"
+        else:
+            # Strip query string if any.
+            rel = path.split("?", 1)[0].lstrip("/")
+        # Prevent path traversal.
+        target = (self._web_dir / rel).resolve()
+        if not str(target).startswith(str(self._web_dir.resolve())):
+            await self._http_response(connection, 403, b"forbidden", "text/plain")
+            return
+        if not target.is_file():
+            await self._http_response(connection, 404, b"not found", "text/plain")
+            return
+        ext = target.suffix.lower()
+        ctype = {
+            ".html": "text/html; charset=utf-8",
+            ".js": "application/javascript; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".png": "image/png",
+            ".svg": "image/svg+xml",
+            ".ico": "image/x-icon",
+            ".json": "application/json; charset=utf-8",
+        }.get(ext, "application/octet-stream")
+        body = target.read_bytes()
+        await self._http_response(connection, 200, body, ctype)
+
+    @staticmethod
+    async def _http_response(
+        connection: ServerConnection, status: int, body: bytes, ctype: str
+    ) -> None:
+        reason = {200: "OK", 403: "Forbidden", 404: "Not Found"}.get(status, "OK")
+        headers = [
+            ("Content-Type", ctype),
+            ("Content-Length", str(len(body))),
+            ("Connection", "close"),
+        ]
+        # websockets lib exposes `connection.transport` for raw HTTP responses.
+        transport = connection.transport
+        if transport is None:
+            return
+        transport.write(
+            f"HTTP/1.1 {status} {reason}\r\n".encode("ascii")
+            + b"".join(f"{k}: {v}\r\n".encode("ascii") for k, v in headers)
+            + b"\r\n"
+            + body
+        )
+        try:
+            await connection.close()
+        except Exception:
+            pass
+
+    # ----- WebSocket protocol -----
+
+    async def _ws_loop(self, connection: ServerConnection) -> None:
+        # First client triggers dumper start.
+        await self._register_client(connection)
+        try:
+            # Send hello.
+            await connection.send(json.dumps({
+                "type": "hello",
+                "fb_w": config.FB_WIDTH,
+                "fb_h": config.FB_HEIGHT,
+                "fb_size": config.FB_SIZE,
+                "period_ms": self._period_ms,
+            }).encode("utf-8"))
+            # Receive control messages until disconnect.
+            async for raw in connection:
+                if isinstance(raw, str):
+                    await self._handle_control(connection, raw)
+                # Binary frames from client are not used; ignore.
+        except websockets.ConnectionClosed:
+            pass
+        finally:
+            await self._unregister_client(connection)
+
+    async def _handle_control(self, connection: ServerConnection, raw: str) -> None:
+        try:
+            msg = json.loads(raw)
+        except json.JSONDecodeError:
+            return
+        kind = msg.get("type")
+        if kind == "set_period":
+            new_ms = int(msg.get("ms", config.DEFAULT_PERIOD_MS))
+            new_ms = max(config.MIN_PERIOD_MS, min(config.MAX_PERIOD_MS, new_ms))
+            self._period_ms = new_ms
+            log.info("period → %d ms", new_ms)
+            # Restart dumper with new period.
+            await self._dumper.start(new_ms)
+        elif kind == "pause":
+            await self._broadcast_status("running", "client paused")
+        elif kind == "resume":
+            await self._broadcast_status("running", "client resumed")
+        elif kind == "save_png":
+            await self._send_png(connection)
+
+    async def _send_png(self, connection: ServerConnection) -> None:
+        frame = self._dumper.latest_frame
+        if frame is None:
+            return
+        # Convert 4800 bytes → 240x160 mode-'1' PIL Image → PNG.
+        try:
+            from PIL import Image
+            img = Image.frombytes("1", (config.FB_WIDTH, config.FB_HEIGHT), frame.payload)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            png_bytes = buf.getvalue()
+            # Frame: [4B LE uint32 length][PNG bytes]
+            await connection.send(struct.pack("<I", len(png_bytes)) + png_bytes)
+        except Exception as e:
+            log.warning("PNG save failed: %s", e)
+
+    # ----- client registration / broadcast -----
+
+    async def _register_client(self, connection: ServerConnection) -> None:
+        async with self._lock:
+            self._clients.add(connection)
+            was_zero = self._client_count == 0
+            self._client_count += 1
+            if was_zero:
+                log.info("first client — starting dumper")
+                await self._dumper.start(self._period_ms)
+                # Spawn the broadcast loop if not running.
+                if self._state_task is None or self._state_task.done():
+                    self._state_task = asyncio.create_task(self._broadcast_loop())
+
+    async def _unregister_client(self, connection: ServerConnection) -> None:
+        async with self._lock:
+            self._clients.discard(connection)
+            self._client_count -= 1
+            if self._client_count <= 0:
+                self._client_count = 0
+                log.info("last client gone — stopping dumper")
+                await self._dumper.stop()
+
+    async def _broadcast_loop(self) -> None:
+        """Continuously push the latest frame to all clients.
+
+        Polls the dumper's `latest_frame` reference. Whenever it changes,
+        send the new frame to every connected client as a binary message.
+        """
+        last_sent_ts: int = -1
+        while self._client_count > 0:
+            frame = self._dumper.latest_frame
+            if frame is not None and frame.ts_us != last_sent_ts:
+                last_sent_ts = frame.ts_us
+                # Snapshot the client set; copy to avoid mutation during send.
+                targets = list(self._clients)
+                for c in targets:
+                    try:
+                        await c.send(frame.payload)
+                    except Exception:
+                        pass  # client will be cleaned up on next event
+            await asyncio.sleep(0.005)  # 200 Hz poll — cheap, avoids busy-wait
+
+    async def _broadcast_status(self, state: str, msg: str) -> None:
+        text = json.dumps({"type": "status", "state": state, "msg": msg}).encode("utf-8")
+        for c in list(self._clients):
+            try:
+                await c.send(text)
+            except Exception:
+                pass
+
+    def _on_dumper_state(self, state, msg: str) -> None:
+        """Called by the dumper on state changes. Schedule a status broadcast."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._broadcast_status(state.value, msg))
+        except RuntimeError:
+            pass  # no running loop yet
