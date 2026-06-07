@@ -16,6 +16,7 @@ import json
 import logging
 import pathlib
 import struct
+import threading
 from typing import Any, Protocol
 
 import websockets
@@ -36,6 +37,7 @@ class DumperLike(Protocol):
     async def start(self, period_ms: int) -> None: ...
     async def stop(self) -> None: ...
     def set_state_callback(self, cb) -> None: ...
+    def set_new_frame_callback(self, cb) -> None: ...
 
 
 class WSServer:
@@ -52,10 +54,15 @@ class WSServer:
         self._client_count = 0
         self._lock = asyncio.Lock()
         self._state_task: asyncio.Task | None = None
+        # Event-driven broadcast: dumper sets this when a new frame is
+        # published, broadcast loop awaits it in a worker thread.
+        self._new_frame_event = threading.Event()
         # Static file directory.
         self._web_dir = pathlib.Path(__file__).parent / "web"
         # dumper → ws_server state broadcast.
         self._dumper.set_state_callback(self._on_dumper_state)
+        # dumper → ws_server new-frame signal.
+        self._dumper.set_new_frame_callback(self._on_new_frame)
         # Default period for first start.
         self._period_ms: int = config.DEFAULT_PERIOD_MS
 
@@ -83,6 +90,18 @@ class WSServer:
             self._ws_server.close()
             await self._ws_server.wait_closed()
             self._ws_server = None
+        # Wake the broadcast loop so it exits cleanly.
+        self._new_frame_event.set()
+        if self._state_task is not None and not self._state_task.done():
+            try:
+                await asyncio.wait_for(self._state_task, timeout=2.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                self._state_task.cancel()
+                try:
+                    await self._state_task
+                except (asyncio.CancelledError, Exception):
+                    pass
+        self._state_task = None
 
     async def serve_forever(self) -> None:
         if self._ws_server is not None:
@@ -231,26 +250,43 @@ class WSServer:
                 self._client_count = 0
                 log.info("last client gone — stopping dumper")
                 await self._dumper.stop()
+                # Wake the broadcast loop so it notices client_count == 0
+                # and exits, instead of blocking forever in wait().
+                self._new_frame_event.set()
 
     async def _broadcast_loop(self) -> None:
-        """Continuously push the latest frame to all clients.
+        """Push frames to clients as soon as the dumper publishes them.
 
-        Polls the dumper's `latest_frame` reference. Whenever it changes,
-        send the new frame to every connected client as a binary message.
+        Event-driven: the dumper's reader sets ``_new_frame_event`` after
+        updating ``latest_frame``. We wait on that event in a worker thread
+        (so the asyncio event loop is never blocked), then drain the event,
+        snapshot the latest frame, and ship it to every connected client.
+
+        Drain-after-wait ordering guarantees we never lose a frame: if
+        frames arrive while we are sending the previous one, the event is
+        set again and the next ``wait()`` returns immediately.
         """
         last_sent_ts: int = -1
+        loop = asyncio.get_running_loop()
         while self._client_count > 0:
+            # Block on the dumper's signal without blocking the event loop.
+            await loop.run_in_executor(None, self._new_frame_event.wait)
+            self._new_frame_event.clear()
             frame = self._dumper.latest_frame
-            if frame is not None and frame.ts_us != last_sent_ts:
-                last_sent_ts = frame.ts_us
-                # Snapshot the client set; copy to avoid mutation during send.
-                targets = list(self._clients)
-                for c in targets:
-                    try:
-                        await c.send(frame.payload)
-                    except Exception:
-                        pass  # client will be cleaned up on next event
-            await asyncio.sleep(0.005)  # 200 Hz poll — cheap, avoids busy-wait
+            if frame is None or frame.ts_us == last_sent_ts:
+                continue
+            last_sent_ts = frame.ts_us
+            # Snapshot the client set; copy to avoid mutation during send.
+            targets = list(self._clients)
+            for c in targets:
+                try:
+                    await c.send(frame.payload)
+                except Exception:
+                    pass  # client will be cleaned up on next event
+
+    def _on_new_frame(self) -> None:
+        """Dumper callback: wake the broadcast loop. Runs in dumper thread."""
+        self._new_frame_event.set()
 
     async def _broadcast_status(self, state: str, msg: str) -> None:
         text = json.dumps({"type": "status", "state": state, "msg": msg}).encode("utf-8")

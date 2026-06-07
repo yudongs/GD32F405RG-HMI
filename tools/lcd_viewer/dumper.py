@@ -41,6 +41,7 @@ class Dumper:
 
     def __init__(self, on_state_change: StateCallback | None = None) -> None:
         self._on_state = on_state_change or (lambda s, m: None)
+        self._on_new_frame: Callable[[], None] = lambda: None
         self._proc: subprocess.Popen | None = None
         self._reader_task: asyncio.Task | None = None
         self._reader_thread: threading.Thread | None = None
@@ -62,6 +63,14 @@ class Dumper:
     def set_state_callback(self, cb: StateCallback) -> None:
         """Replace the state-change callback (used by WSServer)."""
         self._on_state = cb
+
+    def set_new_frame_callback(self, cb: Callable[[], None]) -> None:
+        """Register a callback fired after each new frame is published.
+
+        Used by WSServer to wake its broadcast loop only when a new frame
+        is actually available (event-driven, no busy-poll).
+        """
+        self._on_new_frame = cb
 
     # ----- state transitions -----
 
@@ -193,6 +202,10 @@ class Dumper:
                     log.warning("parse error: %s", e)
                     continue
                 self._latest = frame
+                try:
+                    self._on_new_frame()
+                except Exception:  # callback errors must not break the reader
+                    log.exception("on_new_frame callback raised")
                 if self._state == DumperState.STARTING:
                     self._set_state(DumperState.RUNNING, "first frame received")
         except Exception as e:

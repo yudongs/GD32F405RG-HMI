@@ -137,3 +137,55 @@ def test_dumper_state_enum_has_required_values():
     assert DumperState.RUNNING
     assert DumperState.STOPPING
     assert DumperState.ERROR
+
+
+@pytest.mark.asyncio
+async def test_dumper_invokes_new_frame_callback_per_frame():
+    """on_new_frame() must be called once per published frame, in the reader loop.
+
+    This is the contract WSServer relies on for event-driven broadcast.
+    """
+    callback_count = 0
+
+    def on_new_frame() -> None:
+        nonlocal callback_count
+        callback_count += 1
+
+    d = Dumper()
+    d.set_new_frame_callback(on_new_frame)
+    with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _make_mock_proc([
+            _make_json_line(1),
+            _make_json_line(2),
+            _make_json_line(3),
+        ])
+        await d.start(period_ms=50)
+        # Allow the reader task to consume all three lines.
+        await asyncio.sleep(0.1)
+
+    assert callback_count == 3, (
+        f"expected 3 callback invocations, got {callback_count}"
+    )
+    await d.stop()
+
+
+@pytest.mark.asyncio
+async def test_dumper_new_frame_callback_errors_do_not_break_reader():
+    """A misbehaving callback must not stop the reader from processing frames."""
+    def on_new_frame() -> None:
+        raise RuntimeError("boom")
+
+    d = Dumper()
+    d.set_new_frame_callback(on_new_frame)
+    with patch("tools.lcd_viewer.dumper.subprocess.Popen") as mock_popen:
+        mock_popen.return_value = _make_mock_proc([
+            _make_json_line(10),
+            _make_json_line(11),
+        ])
+        await d.start(period_ms=50)
+        await asyncio.sleep(0.1)
+
+    # Reader kept going — both frames were published.
+    assert d.latest_frame is not None
+    assert d.latest_frame.ts_us == 11
+    await d.stop()

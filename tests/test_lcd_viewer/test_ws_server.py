@@ -35,6 +35,10 @@ class FakeDumper:
     def set_state_callback(self, cb):
         self._state_cb = cb
 
+    def set_new_frame_callback(self, cb):
+        # No-op for the fake — the test harness drives frames via push_frame().
+        pass
+
     async def start(self, period_ms: int):
         self.state = DumperState.STARTING
         self._state_cb(self.state, "starting")
